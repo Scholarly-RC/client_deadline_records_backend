@@ -1,0 +1,189 @@
+# views.py
+from django.db.models import Q
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, permissions, viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from core.models import (
+    Client,
+    ClientDeadline,
+    ClientDocument,
+    DeadlineType,
+    User,
+    WorkUpdate,
+)
+from core.serializers import (
+    ClientDeadlineSerializer,
+    ClientDocumentSerializer,
+    ClientSerializer,
+    DeadlineTypeSerializer,
+    UserSerializer,
+    WorkUpdateSerializer,
+)
+
+
+class IsOwnerOrStaff(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of an object or staff to edit it.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_staff:
+            return True
+
+        # For objects with created_by field
+        if hasattr(obj, "created_by"):
+            return obj.created_by == request.user
+
+        # For ClientDeadline with assigned_to field
+        if hasattr(obj, "assigned_to"):
+            return obj.assigned_to == request.user
+
+        return False
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    @action(detail=False, methods=["post"], url_path="get-current-user")
+    def get_current_user(self, request):
+        user = request.user
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ClientViewSet(viewsets.ModelViewSet):
+    queryset = Client.objects.all()
+    serializer_class = ClientSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["status"]
+    search_fields = ["name", "contact_person", "email"]
+    ordering_fields = ["name", "created_at"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Non-staff users only see clients they created
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(created_by=self.request.user)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class DeadlineTypeViewSet(viewsets.ModelViewSet):
+    queryset = DeadlineType.objects.all()
+    serializer_class = DeadlineTypeSerializer
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    pagination_class = None
+
+
+class ClientDeadlineViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientDeadlineSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["client", "deadline_type", "status", "priority", "assigned_to"]
+    search_fields = ["description", "client__name", "deadline_type__name"]
+    ordering_fields = ["due_date", "priority", "created_at"]
+
+    def get_queryset(self):
+        queryset = ClientDeadline.objects.select_related(
+            "client", "deadline_type", "assigned_to", "created_by"
+        )
+
+        # Non-staff users only see deadlines they created or are assigned to
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(
+                Q(created_by=self.request.user) | Q(assigned_to=self.request.user)
+            )
+
+        # Filter for upcoming deadlines
+        upcoming = self.request.query_params.get("upcoming", None)
+        if upcoming is not None:
+            queryset = queryset.filter(due_date__gte=timezone.now().date())
+
+        # Filter for overdue deadlines
+        overdue = self.request.query_params.get("overdue", None)
+        if overdue is not None:
+            queryset = queryset.filter(
+                due_date__lt=timezone.now().date(),
+                status__in=["pending", "in_progress"],
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class WorkUpdateViewSet(viewsets.ModelViewSet):
+    serializer_class = WorkUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+
+    def get_queryset(self):
+        queryset = WorkUpdate.objects.select_related("deadline", "created_by")
+
+        # Filter by deadline if provided
+        deadline_id = self.request.query_params.get("deadline", None)
+        if deadline_id is not None:
+            queryset = queryset.filter(deadline_id=deadline_id)
+
+        # Non-staff users only see updates they created or for deadlines they're assigned to
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(
+                Q(created_by=self.request.user)
+                | Q(deadline__assigned_to=self.request.user)
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+        # Update the deadline status if it's changed in the update
+        deadline = serializer.validated_data["deadline"]
+        new_status = serializer.validated_data["status"]
+        if deadline.status != new_status:
+            deadline.status = new_status
+            if new_status == "completed":
+                deadline.completed_at = timezone.now()
+            deadline.save()
+
+
+class ClientDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = ClientDocumentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+
+    def get_queryset(self):
+        queryset = ClientDocument.objects.select_related("client", "uploaded_by")
+
+        # Filter by client if provided
+        client_id = self.request.query_params.get("client", None)
+        if client_id is not None:
+            queryset = queryset.filter(client_id=client_id)
+
+        # Non-staff users only see documents they uploaded or for clients they created
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(
+                Q(uploaded_by=self.request.user)
+                | Q(client__created_by=self.request.user)
+            )
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)

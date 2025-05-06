@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.py[co]
+*.so
+*.egg-info/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Environment files
+.env
+.env.local
+
+# Virtual environment
+venv/
+env/
+
+# Static/media files (if not committed)
+staticfiles/
+static/
+media/
+
+# IDE
+.idea/
+.vscode/
+
+# Temporary
+*.html
