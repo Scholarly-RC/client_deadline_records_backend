@@ -6,10 +6,21 @@ from django.utils.translation import gettext_lazy as _
 
 
 class User(AbstractUser):
+    ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("staff", "Staff"),
+    ]
+
     middle_name = models.CharField(_("Middle Name"), max_length=150, blank=True)
+    role = models.CharField(
+        max_length=5,
+        choices=ROLE_CHOICES,
+        default="staff",
+    )
     updated = models.DateField(auto_now=True, null=True, blank=True)
 
     class Meta:
+        ordering = ["role", "first_name"]
         verbose_name = "User"
         verbose_name_plural = "Users"
 
@@ -52,9 +63,6 @@ class Client(models.Model):
 class DeadlineType(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    default_priority = models.PositiveSmallIntegerField(
-        default=3, validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
     default_reminder_days = models.PositiveIntegerField(default=7)
 
     def __str__(self):
@@ -110,20 +118,21 @@ class ClientDeadline(models.Model):
         return f"{self.client.name} - {self.deadline_type.name} - {self.due_date}"
 
     def save(self, *args, **kwargs):
-        # Auto-set reminder date if not set and deadline type has default reminder days
-        if not self.reminder_date and self.deadline_type.default_reminder_days:
-            self.reminder_date = self.due_date - timezone.timedelta(
-                days=self.deadline_type.default_reminder_days
-            )
+        # Auto-set reminder date
+        self.reminder_date = self.due_date - timezone.timedelta(
+            days=self.deadline_type.default_reminder_days
+        )
 
         # Auto-update status if due_date is in the past and status is pending
         if self.due_date < timezone.now().date() and self.status == "pending":
             self.status = "overdue"
+        elif self.due_date > timezone.now().date() and self.status == "overdue":
+            self.status = "pending"
 
         super().save(*args, **kwargs)
 
     class Meta:
-        ordering = ["due_date", "priority"]
+        ordering = ["due_date", "-priority"]
         verbose_name = "Client Deadline"
         verbose_name_plural = "Client Deadlines"
 

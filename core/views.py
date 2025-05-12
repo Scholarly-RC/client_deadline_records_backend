@@ -2,7 +2,7 @@
 from django.db.models import Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, permissions, viewsets, status
+from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -45,13 +45,38 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.exclude(is_superuser=True)
     serializer_class = UserSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+    ]
+    search_fields = ["first_name", "middle_name", "last_name", "email", "username"]
 
-    @action(detail=False, methods=["post"], url_path="get-current-user")
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)  # Will trigger validate()
+        serializer.save()  # Will trigger create()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="get-current-user")
     def get_current_user(self, request):
         user = request.user
         serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="toggle-active-status")
+    def toggle_active_status(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = not user.is_active
+        user.save()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path="get-user-choices")
+    def get_user_choices(self, request):
+        users = self.get_queryset().filter(is_active=True)
+        serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -65,7 +90,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter,
     ]
     filterset_fields = ["status"]
-    search_fields = ["name", "contact_person", "email"]
+    search_fields = ["name", "contact_person", "email", "address", "phone"]
     ordering_fields = ["name", "created_at"]
 
     def get_queryset(self):
@@ -84,13 +109,15 @@ class ClientViewSet(viewsets.ModelViewSet):
 class DeadlineTypeViewSet(viewsets.ModelViewSet):
     queryset = DeadlineType.objects.all()
     serializer_class = DeadlineTypeSerializer
-    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    # permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    # TODO: Implement permissions
+    permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
 
 
 class ClientDeadlineViewSet(viewsets.ModelViewSet):
     serializer_class = ClientDeadlineSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -129,10 +156,16 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_update(self, serializer):
+        deadline = serializer.save()
+        deadline.work_updates.all().delete()
+        deadline.status = "pending"
+        deadline.save()
+
 
 class WorkUpdateViewSet(viewsets.ModelViewSet):
     serializer_class = WorkUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = WorkUpdate.objects.select_related("deadline", "created_by")
@@ -161,6 +194,8 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
             deadline.status = new_status
             if new_status == "completed":
                 deadline.completed_at = timezone.now()
+            else:
+                deadline.completed_at = None
             deadline.save()
 
 
