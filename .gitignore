@@ -23,6 +23,7 @@ env/
 staticfiles/
 static/
 media/
+uploads/
 
 # IDE
 .idea/

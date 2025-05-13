@@ -94,7 +94,7 @@ class ClientDeadline(models.Model):
     client = models.ForeignKey(
         Client, on_delete=models.RESTRICT, related_name="deadlines"
     )
-    deadline_type = models.ForeignKey(DeadlineType, on_delete=models.PROTECT)
+    deadline_type = models.ForeignKey(DeadlineType, on_delete=models.RESTRICT)
     due_date = models.DateField()
     priority = models.PositiveSmallIntegerField(choices=PRIORITY_CHOICES, default=3)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -159,13 +159,16 @@ class WorkUpdate(models.Model):
 
 class ClientDocument(models.Model):
     client = models.ForeignKey(
-        Client, on_delete=models.CASCADE, related_name="documents"
+        Client, on_delete=models.RESTRICT, related_name="documents"
+    )
+    deadline = models.ForeignKey(
+        ClientDeadline, on_delete=models.RESTRICT, related_name="documents", null=True
     )
     name = models.CharField(max_length=200)
     file = models.FileField(upload_to="client_documents/")
     description = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, related_name="documents_uploaded"
+        User, on_delete=models.RESTRICT, null=True, related_name="documents_uploaded"
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

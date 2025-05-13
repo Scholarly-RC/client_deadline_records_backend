@@ -1,5 +1,9 @@
 # views.py
+import os
+
+from django.conf import settings
 from django.db.models import Q
+from django.http import FileResponse, Http404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
@@ -201,7 +205,7 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
 
 class ClientDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = ClientDocumentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = ClientDocument.objects.select_related("client", "uploaded_by")
@@ -222,3 +226,22 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
+
+
+def download_client_document(request, file_id):
+    # TODO: Implement permissions
+    try:
+        client_document = ClientDocument.objects.get(id=file_id)
+    except ClientDocument.DoesNotExist:
+        raise Http404("File not found")
+
+    file_path = client_document.file.path
+
+    if not os.path.exists(file_path):
+        raise Http404("File does not exist on disk")
+
+    response = FileResponse(open(file_path, "rb"))
+    response["Content-Disposition"] = (
+        f'attachment; filename="{os.path.basename(file_path)}"'
+    )
+    return response
