@@ -18,7 +18,7 @@ from core.models import (
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "role", "fullname"]
+        fields = ["id", "first_name", "last_name", "role", "fullname", "is_admin"]
 
 
 class ClientMiniSerializer(serializers.ModelSerializer):
@@ -85,6 +85,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "last_login",
             "password",
+            "is_admin",
         ]
 
     def validate(self, data):

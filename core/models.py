@@ -31,6 +31,10 @@ class User(AbstractUser):
     def fullname(self):
         return f"{self.first_name} {self.middle_name} {self.last_name}".title()
 
+    @property
+    def is_admin(self):
+        return self.role == "admin"
+
 
 class Client(models.Model):
     STATUS_CHOICES = [

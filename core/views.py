@@ -103,8 +103,10 @@ class ClientViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
 
         # Non-staff users only see clients they created
-        if not self.request.user.is_staff:
-            queryset = queryset.filter(created_by=self.request.user)
+        if not self.request.user.is_admin:
+            queryset = queryset.filter(
+                deadlines__assigned_to=self.request.user
+            ).distinct()
 
         return queryset
 
@@ -139,22 +141,9 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
         )
 
         # Non-staff users only see deadlines they created or are assigned to
-        if not self.request.user.is_staff:
+        if not self.request.user.is_admin:
             queryset = queryset.filter(
                 Q(created_by=self.request.user) | Q(assigned_to=self.request.user)
-            )
-
-        # Filter for upcoming deadlines
-        upcoming = self.request.query_params.get("upcoming", None)
-        if upcoming is not None:
-            queryset = queryset.filter(due_date__gte=timezone.now().date())
-
-        # Filter for overdue deadlines
-        overdue = self.request.query_params.get("overdue", None)
-        if overdue is not None:
-            queryset = queryset.filter(
-                due_date__lt=timezone.now().date(),
-                status__in=["pending", "in_progress"],
             )
 
         return queryset
@@ -223,19 +212,6 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = ClientDocument.objects.select_related("client", "uploaded_by")
-
-        # Filter by client if provided
-        client_id = self.request.query_params.get("client", None)
-        if client_id is not None:
-            queryset = queryset.filter(client_id=client_id)
-
-        # Non-staff users only see documents they uploaded or for clients they created
-        if not self.request.user.is_staff:
-            queryset = queryset.filter(
-                Q(uploaded_by=self.request.user)
-                | Q(client__created_by=self.request.user)
-            )
-
         return queryset
 
     def perform_create(self, serializer):
@@ -246,34 +222,49 @@ class StatsAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, format=None):
+        data = {}
         now = timezone.now()
         today = now.date()
         in_seven_days = today + timedelta(days=7)
 
-        total_clients = Client.objects.filter(status="active").count()
-        overdue_deadlines = ClientDeadline.objects.filter(status="overdue").count()
-        monthly_completed_deadlines = ClientDeadline.objects.filter(
+        current_user = request.user
+
+        is_admin = current_user.is_admin
+
+        client_deadline = ClientDeadline.objects.all()
+
+        if is_admin:
+            total_clients = Client.objects.filter(status="active").count()
+            data.update({"total_clients": total_clients})
+        else:
+            client_deadline = client_deadline.filter(assigned_to=current_user)
+
+        overdue_deadlines = client_deadline.filter(status="overdue").count()
+        monthly_completed_deadlines = client_deadline.filter(
             status="completed", due_date__month=now.month
         ).count()
 
-        upcoming_deadlines = ClientDeadline.objects.filter(
+        upcoming_deadlines = client_deadline.filter(
             status__in=["in_progress", "pending"],
             due_date__gte=today,
             due_date__lte=in_seven_days,
         ).count()
 
-        pending_deadlines = ClientDeadline.objects.filter(status="pending").count()
-        cancelled_deadlines = ClientDeadline.objects.filter(status="cancelled").count()
+        pending_deadlines = client_deadline.filter(status="pending").count()
+        cancelled_deadlines = client_deadline.filter(status="cancelled").count()
 
-        return Response(
+        data.update(
             {
-                "total_clients": total_clients,
                 "overdue_deadlines": overdue_deadlines,
                 "monthly_completed_deadlines": monthly_completed_deadlines,
                 "upcoming_deadlines": upcoming_deadlines,
                 "pending_deadlines": pending_deadlines,
                 "cancelled_deadlines": cancelled_deadlines,
-            },
+            }
+        )
+
+        return Response(
+            data,
             status=status.HTTP_200_OK,
         )
 
