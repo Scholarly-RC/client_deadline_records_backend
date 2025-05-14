@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from core.views import (
@@ -5,6 +6,7 @@ from core.views import (
     ClientDocumentViewSet,
     ClientViewSet,
     DeadlineTypeViewSet,
+    StatsAPIView,
     UserViewSet,
     WorkUpdateViewSet,
 )
@@ -19,4 +21,6 @@ router.register(r"client-deadlines", ClientDeadlineViewSet, basename="clientdead
 router.register(r"work-updates", WorkUpdateViewSet, basename="workupdate")
 router.register(r"client-documents", ClientDocumentViewSet, basename="clientdocument")
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path("stats/", StatsAPIView.as_view(), name="stats"),
+]

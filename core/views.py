@@ -1,5 +1,6 @@
 # views.py
 import os
+from datetime import timedelta
 
 from django.conf import settings
 from django.db.models import Q
@@ -9,6 +10,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from core.models import (
     Client,
@@ -77,7 +79,7 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["get"], url_path="get-user-choices")
+    @action(detail=False, methods=["get"], url_path="user-choices")
     def get_user_choices(self, request):
         users = self.get_queryset().filter(is_active=True)
         serializer = UserSerializer(users, many=True)
@@ -157,6 +159,18 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @action(detail=False, methods=["get"], url_path="upcoming-deadlines")
+    def get_upcoming_deadlines(self, request):
+        today = timezone.now().date()
+        in_seven_days = today + timedelta(days=7)
+        deadlines = self.get_queryset().filter(
+            status__in=["in_progress", "pending"],
+            due_date__gte=today,
+            due_date__lte=in_seven_days,
+        )
+        serializer = ClientDeadlineSerializer(deadlines, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
@@ -226,6 +240,42 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
+
+
+class StatsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, format=None):
+        now = timezone.now()
+        today = now.date()
+        in_seven_days = today + timedelta(days=7)
+
+        total_clients = Client.objects.filter(status="active").count()
+        overdue_deadlines = ClientDeadline.objects.filter(status="overdue").count()
+        monthly_completed_deadlines = ClientDeadline.objects.filter(
+            status="completed", due_date__month=now.month
+        ).count()
+
+        upcoming_deadlines = ClientDeadline.objects.filter(
+            status__in=["in_progress", "pending"],
+            due_date__gte=today,
+            due_date__lte=in_seven_days,
+        ).count()
+
+        pending_deadlines = ClientDeadline.objects.filter(status="pending").count()
+        cancelled_deadlines = ClientDeadline.objects.filter(status="cancelled").count()
+
+        return Response(
+            {
+                "total_clients": total_clients,
+                "overdue_deadlines": overdue_deadlines,
+                "monthly_completed_deadlines": monthly_completed_deadlines,
+                "upcoming_deadlines": upcoming_deadlines,
+                "pending_deadlines": pending_deadlines,
+                "cancelled_deadlines": cancelled_deadlines,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 def download_client_document(request, file_id):
