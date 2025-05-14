@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import (
+    AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
@@ -86,6 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "password",
             "is_admin",
+            "has_logs",
         ]
 
     def validate(self, data):
@@ -155,6 +157,7 @@ class DeadlineTypeSerializer(serializers.ModelSerializer):
 class ClientSerializer(serializers.ModelSerializer):
     created_by = UserMiniSerializer(read_only=True)
     created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Client
@@ -205,8 +208,8 @@ class ClientDeadlineSerializer(serializers.ModelSerializer):
     created_by = UserMiniSerializer(read_only=True)
     days_remaining = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
-    documents = ClientDocumentMiniSerializer(many=True)
-    work_updates = WorkUpdateMiniSerializer(many=True)
+    documents = ClientDocumentMiniSerializer(read_only=True, many=True)
+    work_updates = WorkUpdateMiniSerializer(read_only=True, many=True)
 
     class Meta:
         model = ClientDeadline
@@ -233,5 +236,15 @@ class WorkUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkUpdate
+        fields = "__all__"
+        read_only_fields = ["created_at"]
+
+
+class AppLogSerializer(serializers.ModelSerializer):
+    user = UserMiniSerializer(read_only=True)
+    created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+
+    class Meta:
+        model = AppLog
         fields = "__all__"
         read_only_fields = ["created_at"]

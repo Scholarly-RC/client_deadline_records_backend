@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from core.models import (
+    AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
@@ -14,18 +15,13 @@ from core.models import (
 
 class CustomUserAdmin(UserAdmin):
     model = User
-    list_display = (
-        "username",
-        "email",
-        "first_name",
-        "middle_name",
-        "last_name",
-        "fullname",
-        "is_staff",
-    )
-    list_filter = ("is_staff", "is_superuser", "is_active", "groups")
+    list_display = ("username", "email", "fullname", "role")
+    list_filter = ("role", "is_superuser", "is_active")
     search_fields = ("username", "first_name", "middle_name", "last_name", "email")
-    ordering = ("username",)
+    ordering = (
+        "role",
+        "first_name",
+    )
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
@@ -40,6 +36,7 @@ class CustomUserAdmin(UserAdmin):
                     "is_active",
                     "is_staff",
                     "is_superuser",
+                    "role",
                     "groups",
                     "user_permissions",
                 ),
@@ -70,6 +67,7 @@ class CustomUserAdmin(UserAdmin):
 
 
 # Register your models here.
+admin.site.register(AppLog)
 admin.site.register(Client)
 admin.site.register(ClientDeadline)
 admin.site.register(ClientDocument)

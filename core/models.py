@@ -35,6 +35,10 @@ class User(AbstractUser):
     def is_admin(self):
         return self.role == "admin"
 
+    @property
+    def has_logs(self):
+        return self.logs.exists()
+
 
 class Client(models.Model):
     STATUS_CHOICES = [
@@ -62,6 +66,10 @@ class Client(models.Model):
         ordering = ["name"]
         verbose_name = "Client"
         verbose_name_plural = "Clients"
+
+    @property
+    def is_active(self):
+        return self.status == "active"
 
 
 class DeadlineType(models.Model):
@@ -177,9 +185,25 @@ class ClientDocument(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.client.name} - {self.name}"
+        return f"{self.deadline} - {self.name}"
 
     class Meta:
         ordering = ["-uploaded_at"]
         verbose_name = "Client Document"
         verbose_name_plural = "Client Documents"
+
+
+class AppLog(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.RESTRICT, null=True, related_name="logs"
+    )
+    details = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.fullname} - {self.details[:50]} - {self.created_at.date()}"
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "App Log"
+        verbose_name_plural = "App Logs"

@@ -2,9 +2,9 @@
 import os
 from datetime import timedelta
 
-from django.conf import settings
 from django.db.models import Q
-from django.http import FileResponse, Http404
+from django.db.models.deletion import RestrictedError
+from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
@@ -12,7 +12,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.actions import create_log
 from core.models import (
+    AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
@@ -21,10 +23,12 @@ from core.models import (
     WorkUpdate,
 )
 from core.serializers import (
+    AppLogSerializer,
     ClientDeadlineSerializer,
     ClientDocumentSerializer,
     ClientSerializer,
     DeadlineTypeSerializer,
+    UserMiniSerializer,
     UserSerializer,
     WorkUpdateSerializer,
 )
@@ -36,7 +40,7 @@ class IsOwnerOrStaff(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        if request.user.is_staff:
+        if request.user.is_admin:
             return True
 
         # For objects with created_by field
@@ -52,6 +56,7 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.exclude(is_superuser=True)
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     serializer_class = UserSerializer
     filter_backends = [
         DjangoFilterBackend,
@@ -59,11 +64,16 @@ class UserViewSet(viewsets.ModelViewSet):
     ]
     search_fields = ["first_name", "middle_name", "last_name", "email", "username"]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)  # Will trigger validate()
-        serializer.save()  # Will trigger create()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        create_log(self.request.user, f"Created user: {instance}.")
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        create_log(
+            self.request.user,
+            f"Updated user: {instance}. Password changed: {'Yes' if 'password' in serializer.validated_data else 'No'}.",
+        )
 
     @action(detail=False, methods=["get"], url_path="get-current-user")
     def get_current_user(self, request):
@@ -77,6 +87,10 @@ class UserViewSet(viewsets.ModelViewSet):
         user.is_active = not user.is_active
         user.save()
         serializer = self.get_serializer(user)
+        create_log(
+            request.user,
+            f"{'Enabled' if user.is_active else 'Disabled'} user: {user.fullname}.",
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="user-choices")
@@ -111,16 +125,44 @@ class ClientViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        create_log(self.request.user, f"Created client: {instance}.")
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        create_log(
+            self.request.user,
+            f"Updated client: {instance}. Status: {'Active' if instance.is_active else 'Inactive'}.",
+        )
 
 
 class DeadlineTypeViewSet(viewsets.ModelViewSet):
     queryset = DeadlineType.objects.all()
     serializer_class = DeadlineTypeSerializer
-    # permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
-    # TODO: Implement permissions
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     pagination_class = None
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.delete()
+            create_log(self.request.user, f"Deleted deadline type: {instance}.")
+        except RestrictedError as e:
+            return Response(
+                {
+                    "detail": "Cannot delete this object because it is referenced by other records.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        create_log(self.request.user, f"Created deadline type: {instance}.")
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        create_log(self.request.user, f"Updated deadline type: {instance}.")
 
 
 class ClientDeadlineViewSet(viewsets.ModelViewSet):
@@ -160,14 +202,30 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
         serializer = ClientDeadlineSerializer(deadlines, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.delete()
+            create_log(self.request.user, f"Deleted deadline: {instance}.")
+        except Exception as e:
+            return Response(
+                {
+                    "detail": "An unexpected error occurred during deletion.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        create_log(self.request.user, f"Created deadline: {instance}.")
 
     def perform_update(self, serializer):
         deadline = serializer.save()
         deadline.work_updates.all().delete()
         deadline.status = "pending"
         deadline.save()
+        create_log(self.request.user, f"Updated deadline: {deadline}.")
 
 
 class WorkUpdateViewSet(viewsets.ModelViewSet):
@@ -192,7 +250,11 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        create_log(
+            self.request.user,
+            f"Created work update: {instance}. Instance: {instance.get_status_display()}.",
+        )
 
         # Update the deadline status if it's changed in the update
         deadline = serializer.validated_data["deadline"]
@@ -215,7 +277,8 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+        instance = serializer.save(uploaded_by=self.request.user)
+        create_log(self.request.user, f"Uploaded client document: {instance}.")
 
 
 class StatsAPIView(APIView):
@@ -270,9 +333,10 @@ class StatsAPIView(APIView):
 
 
 def download_client_document(request, file_id):
-    # TODO: Implement permissions
     try:
         client_document = ClientDocument.objects.get(id=file_id)
+        if client_document.uploaded_by != request.user:
+            raise HttpResponseForbidden("Permission denied.")
     except ClientDocument.DoesNotExist:
         raise Http404("File not found")
 
@@ -286,3 +350,19 @@ def download_client_document(request, file_id):
         f'attachment; filename="{os.path.basename(file_path)}"'
     )
     return response
+
+
+class AppLogViewSet(viewsets.ModelViewSet):
+    queryset = AppLog.objects.all()
+    serializer_class = AppLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        DjangoFilterBackend,
+    ]
+    filterset_fields = ["user"]
+
+    @action(detail=False, methods=["get"], url_path="users")
+    def get_user_choices(self, request):
+        users = User.objects.exclude(logs__isnull=True)
+        serializer = UserMiniSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
