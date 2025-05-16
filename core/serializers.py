@@ -43,10 +43,11 @@ class ClientDeadlineMiniSerializer(serializers.ModelSerializer):
 
 class ClientDocumentMiniSerializer(serializers.ModelSerializer):
     size = serializers.SerializerMethodField()
+    uploaded_by = UserMiniSerializer()
 
     class Meta:
         model = ClientDocument
-        fields = ["id", "name", "file", "size", "uploaded_at"]
+        fields = ["id", "name", "file", "size", "uploaded_by", "uploaded_at"]
 
     def get_size(self, obj):
         if obj.file:
