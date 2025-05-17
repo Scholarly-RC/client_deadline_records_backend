@@ -7,6 +7,7 @@ from core.models import (
     ClientDeadline,
     ClientDocument,
     DeadlineType,
+    Notification,
     User,
     WorkUpdate,
 )
@@ -19,7 +20,14 @@ from core.models import (
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "role", "fullname", "is_admin"]
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "role",
+            "fullname",
+            "is_admin",
+        ]
 
 
 class ClientMiniSerializer(serializers.ModelSerializer):
@@ -237,6 +245,17 @@ class WorkUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkUpdate
+        fields = "__all__"
+        read_only_fields = ["created_at"]
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    recipient = UserMiniSerializer(read_only=True)
+    is_read = serializers.BooleanField(read_only=True)
+    timesince_created = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Notification
         fields = "__all__"
         read_only_fields = ["created_at"]
 

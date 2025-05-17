@@ -8,6 +8,7 @@ from core.models import (
     ClientDeadline,
     ClientDocument,
     DeadlineType,
+    Notification,
     User,
     WorkUpdate,
 )
@@ -72,5 +73,6 @@ admin.site.register(Client)
 admin.site.register(ClientDeadline)
 admin.site.register(ClientDocument)
 admin.site.register(DeadlineType)
+admin.site.register(Notification)
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(WorkUpdate)

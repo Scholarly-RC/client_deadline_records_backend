@@ -1,7 +1,8 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.timesince import timesince
 from django.utils.translation import gettext_lazy as _
 
 
@@ -191,6 +192,40 @@ class ClientDocument(models.Model):
         ordering = ["-uploaded_at"]
         verbose_name = "Client Document"
         verbose_name_plural = "Client Documents"
+
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, related_name="notifications"
+    )
+
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    link = models.CharField(max_length=255, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
+
+    def __str__(self):
+        recipient = self.recipient.fullname if self.recipient else "No Recipient"
+        return f"[{'Read' if self.is_read else 'Unread'}] {self.title} for {recipient}"
+
+    def mark_as_read(self):
+        self.is_read = True
+        self.save()
+
+    @property
+    def timesince_created(self):
+        return f"{timesince(self.created_at)} ago"
+
+    @property
+    def get_full_link(self):
+        return f"{settings.FRONTEND_URL}/{self.link}" if self.link else None
 
 
 class AppLog(models.Model):

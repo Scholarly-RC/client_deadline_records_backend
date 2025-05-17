@@ -12,13 +12,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.actions import create_log
+from core.actions import create_log, create_notifications
 from core.models import (
     AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
     DeadlineType,
+    Notification,
     User,
     WorkUpdate,
 )
@@ -28,10 +29,12 @@ from core.serializers import (
     ClientDocumentSerializer,
     ClientSerializer,
     DeadlineTypeSerializer,
+    NotificationSerializer,
     UserMiniSerializer,
     UserSerializer,
     WorkUpdateSerializer,
 )
+from core.utils import get_admin_users, get_notification_recipients
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -78,7 +81,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="get-current-user")
     def get_current_user(self, request):
         user = request.user
-        serializer = self.get_serializer(user)
+        serializer = UserMiniSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="toggle-active-status")
@@ -98,6 +101,11 @@ class UserViewSet(viewsets.ModelViewSet):
         users = self.get_queryset().filter(is_active=True)
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="unread-notification-count")
+    def get_unread_notification_count(self, request, pk=None):
+        unread_count = self.get_object().notifications.filter(is_read=False).count()
+        return Response({"unread_count": unread_count}, status=status.HTTP_200_OK)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -207,6 +215,15 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
         try:
             instance.delete()
             create_log(self.request.user, f"Deleted deadline: {instance}.")
+
+            for user in get_notification_recipients(instance.deadline):
+                if user != self.request.user:
+                    create_notifications(
+                        recipient=user,
+                        title="Deadline Removed",
+                        message=f"The deadline has been removed. ({instance.deadline}).",
+                        link=f"/deadlines/{instance.deadline.id}",
+                    )
         except Exception as e:
             return Response(
                 {
@@ -219,13 +236,54 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
         create_log(self.request.user, f"Created deadline: {instance}.")
+        create_notifications(
+            recipient=instance.assigned_to,
+            title="New Deadline Assigned",
+            message=f"New deadline assigned to you: {instance}.",
+            link=f"/deadlines/{instance.id}",
+        )
 
     def perform_update(self, serializer):
+        current_assignee = self.get_object().assigned_to
+        submitted_assignee = serializer.validated_data["assigned_to"]
+        new_assignee = current_assignee != submitted_assignee
+
         deadline = serializer.save()
         deadline.work_updates.all().delete()
         deadline.status = "pending"
         deadline.save()
         create_log(self.request.user, f"Updated deadline: {deadline}.")
+
+        if new_assignee:
+            create_notifications(
+                recipient=submitted_assignee,
+                title="Deadline Assignment Update",
+                message=f"You have been assigned to this deadline: {deadline}.",
+                link=f"/deadlines/{deadline.id}",
+            )
+            create_notifications(
+                recipient=current_assignee,
+                title="Deadline Assignment Update",
+                message=f"Assignment removed for deadline: {deadline}.",
+                link=f"/deadlines/{deadline.id}",
+            )
+            for user in get_admin_users():
+                if user != self.request.user:
+                    create_notifications(
+                        recipient=user,
+                        title="Deadline Modified",
+                        message=f"Deadline has been updated: {deadline}.",
+                        link=f"/deadlines/{deadline.id}",
+                    )
+        else:
+            for user in get_notification_recipients(deadline):
+                if user != self.request.user:
+                    create_notifications(
+                        recipient=user,
+                        title="Deadline Modified",
+                        message=f"Deadline has been updated: {deadline}.",
+                        link=f"/deadlines/{deadline.id}",
+                    )
 
 
 class WorkUpdateViewSet(viewsets.ModelViewSet):
@@ -251,10 +309,6 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
-        create_log(
-            self.request.user,
-            f"Created work update: {instance}. Instance: {instance.get_status_display()}.",
-        )
 
         # Update the deadline status if it's changed in the update
         deadline = serializer.validated_data["deadline"]
@@ -266,6 +320,20 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
             else:
                 deadline.completed_at = None
             deadline.save()
+
+        create_log(
+            self.request.user,
+            f"Created work update: {instance}. Instance: {instance.get_status_display()}.",
+        )
+
+        for user in get_notification_recipients(instance.deadline):
+            if user != self.request.user:
+                create_notifications(
+                    recipient=user,
+                    title="Deadline Update Posted",
+                    message=f"New update added to deadline: {instance.deadline}.",
+                    link=f"/deadlines/{instance.deadline.id}",
+                )
 
 
 class ClientDocumentViewSet(viewsets.ModelViewSet):
@@ -279,6 +347,38 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save(uploaded_by=self.request.user)
         create_log(self.request.user, f"Uploaded client document: {instance}.")
+
+        for user in get_notification_recipients(instance.deadline):
+            if user != self.request.user:
+                create_notifications(
+                    recipient=user,
+                    title="New File Added",
+                    message=f"A file has been uploaded for deadline: {instance.deadline}.",
+                    link=f"/deadlines/{instance.deadline.id}",
+                )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.delete()
+            create_log(self.request.user, f"Deleted an uploaded file: {instance}.")
+
+            for user in get_notification_recipients(instance.deadline):
+                if user != self.request.user:
+                    create_notifications(
+                        recipient=user,
+                        title="File Removed",
+                        message=f"A file has been removed from deadline: {instance.deadline}.",
+                        link=f"/deadlines/{instance.deadline.id}",
+                    )
+        except Exception as e:
+            return Response(
+                {
+                    "detail": "An unexpected error occurred during deletion.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class StatsAPIView(APIView):
@@ -352,10 +452,27 @@ def download_client_document(request, file_id):
     return response
 
 
+class NotificationViewSet(viewsets.ModelViewSet):
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        DjangoFilterBackend,
+    ]
+
+    filterset_fields = ["recipient", "is_read"]
+
+    @action(detail=True, methods=["post"], url_path="mark-as-read")
+    def mark_as_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.mark_as_read()
+        return Response(status=status.HTTP_200_OK)
+
+
 class AppLogViewSet(viewsets.ModelViewSet):
     queryset = AppLog.objects.all()
     serializer_class = AppLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     filter_backends = [
         DjangoFilterBackend,
     ]
