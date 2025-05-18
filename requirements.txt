@@ -6,7 +6,6 @@ dj-database-url==2.3.0
 Django==5.2
 django-cors-headers==4.7.0
 django-filter==25.1
-django-silk==5.3.2
 djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 Faker==37.3.0
