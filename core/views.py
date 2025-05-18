@@ -58,7 +58,7 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.exclude(is_superuser=True)
+    queryset = User.objects.exclude(is_superuser=True).prefetch_related("logs")
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     serializer_class = UserSerializer
     filter_backends = [
@@ -109,7 +109,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all()
+    queryset = Client.objects.select_related("created_by")
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     filter_backends = [
@@ -187,7 +187,13 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = ClientDeadline.objects.select_related(
-            "client", "deadline_type", "assigned_to", "created_by"
+            "assigned_to",
+            "created_by",
+            "client",
+            "deadline_type",
+        ).prefetch_related(
+            "documents",
+            "work_updates",
         )
 
         # Non-staff users only see deadlines they created or are assigned to
@@ -291,15 +297,10 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = WorkUpdate.objects.select_related("deadline", "created_by")
-
-        # Filter by deadline if provided
-        deadline_id = self.request.query_params.get("deadline", None)
-        if deadline_id is not None:
-            queryset = queryset.filter(deadline_id=deadline_id)
+        queryset = WorkUpdate.objects.select_related("created_by", "deadline")
 
         # Non-staff users only see updates they created or for deadlines they're assigned to
-        if not self.request.user.is_staff:
+        if not self.request.user.is_admin:
             queryset = queryset.filter(
                 Q(created_by=self.request.user)
                 | Q(deadline__assigned_to=self.request.user)
@@ -337,12 +338,12 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
 
 
 class ClientDocumentViewSet(viewsets.ModelViewSet):
+    queryset = ClientDocument.objects.select_related(
+        "client", "deadline", "uploaded_by"
+    )
+
     serializer_class = ClientDocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        queryset = ClientDocument.objects.select_related("client", "uploaded_by")
-        return queryset
 
     def perform_create(self, serializer):
         instance = serializer.save(uploaded_by=self.request.user)
@@ -453,7 +454,7 @@ def download_client_document(request, file_id):
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
-    queryset = Notification.objects.all()
+    queryset = Notification.objects.select_related("recipient")
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
@@ -470,7 +471,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 
 class AppLogViewSet(viewsets.ModelViewSet):
-    queryset = AppLog.objects.all()
+    queryset = AppLog.objects.select_related("user")
     serializer_class = AppLogSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     filter_backends = [
