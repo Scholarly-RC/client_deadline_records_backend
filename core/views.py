@@ -34,7 +34,12 @@ from core.serializers import (
     UserSerializer,
     WorkUpdateSerializer,
 )
-from core.utils import get_admin_users, get_notification_recipients
+from core.utils import (
+    get_admin_users,
+    get_notification_recipients,
+    get_now_local,
+    get_today_local,
+)
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -206,7 +211,7 @@ class ClientDeadlineViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="upcoming-deadlines")
     def get_upcoming_deadlines(self, request):
-        today = timezone.now().date()
+        today = get_today_local()
         in_seven_days = today + timedelta(days=7)
         deadlines = self.get_queryset().filter(
             status__in=["in_progress", "pending"],
@@ -317,7 +322,7 @@ class WorkUpdateViewSet(viewsets.ModelViewSet):
         if deadline.status != new_status:
             deadline.status = new_status
             if new_status == "completed":
-                deadline.completed_at = timezone.now()
+                deadline.completed_at = get_now_local()
             else:
                 deadline.completed_at = None
             deadline.save()
@@ -387,7 +392,7 @@ class StatsAPIView(APIView):
 
     def get(self, request, format=None):
         data = {}
-        now = timezone.now()
+        now = get_now_local()
         today = now.date()
         in_seven_days = today + timedelta(days=7)
 

@@ -1,9 +1,12 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Case, Value, When
 from django.utils import timezone
 from django.utils.timesince import timesince
 from django.utils.translation import gettext_lazy as _
+
+from core.utils import get_today_local
 
 
 class User(AbstractUser):
@@ -89,18 +92,18 @@ class DeadlineType(models.Model):
 
 class ClientDeadline(models.Model):
     PRIORITY_CHOICES = [
-        (1, "Lowest"),
-        (2, "Low"),
-        (3, "Medium"),
-        (4, "High"),
         (5, "Highest"),
+        (4, "High"),
+        (3, "Medium"),
+        (2, "Low"),
+        (1, "Lowest"),
     ]
 
     STATUS_CHOICES = [
-        ("pending", "Pending"),
         ("in_progress", "In Progress"),
-        ("completed", "Completed"),
+        ("pending", "Pending"),
         ("overdue", "Overdue"),
+        ("completed", "Completed"),
         ("cancelled", "Cancelled"),
     ]
 
@@ -137,15 +140,28 @@ class ClientDeadline(models.Model):
         )
 
         # Auto-update status if due_date is in the past and status is pending
-        if self.due_date < timezone.now().date() and self.status == "pending":
+        if self.due_date < get_today_local() and self.status == "pending":
             self.status = "overdue"
-        elif self.due_date > timezone.now().date() and self.status == "overdue":
+        elif self.due_date > get_today_local() and self.status == "overdue":
             self.status = "pending"
+
+        print(get_today_local())
 
         super().save(*args, **kwargs)
 
     class Meta:
-        ordering = ["due_date", "-priority"]
+        ordering = [
+            Case(
+                When(status="in_progress", then=Value(0)),
+                When(status="pending", then=Value(1)),
+                When(status="overdue", then=Value(2)),
+                When(status="completed", then=Value(3)),
+                When(status="cancelled", then=Value(4)),
+                default=Value(5),
+            ),
+            "due_date",
+            "-priority",
+        ]
         verbose_name = "Client Deadline"
         verbose_name_plural = "Client Deadlines"
 

@@ -11,6 +11,7 @@ from core.models import (
     User,
     WorkUpdate,
 )
+from core.utils import get_today_local
 
 # =======================
 # Mini Serializers
@@ -226,10 +227,10 @@ class ClientDeadlineSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at", "status"]
 
     def get_days_remaining(self, obj):
-        return (obj.due_date - timezone.now().date()).days
+        return (obj.due_date - get_today_local()).days
 
     def get_is_overdue(self, obj):
-        return obj.due_date < timezone.now().date() and obj.status not in [
+        return obj.due_date < get_today_local() and obj.status not in [
             "completed",
             "cancelled",
         ]

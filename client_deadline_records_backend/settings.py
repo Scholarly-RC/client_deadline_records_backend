@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,6 +34,7 @@ INSTALLED_APPS = [
     "api",
     "core",
     "corsheaders",
+    "django_celery_beat",
     "django_filters",
     "rest_framework",
 ]
@@ -48,7 +50,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "client_record_backend.urls"
+ROOT_URLCONF = "client_deadline_records_backend.urls"
 
 TEMPLATES = [
     {
@@ -65,7 +67,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "client_record_backend.wsgi.application"
+WSGI_APPLICATION = "client_deadline_records_backend.wsgi.application"
 
 DATABASES = {
     "default": dj_database_url.parse(
@@ -123,3 +125,15 @@ SIMPLE_JWT = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "localhost:3000")
+
+CELERY_BROKER_URL = "redis://localhost:6379/0"  # Redis as broker
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+
+
+CELERY_BEAT_SCHEDULE = {
+    "send-deadline-notifications": {
+        "task": "core.tasks.daily_reminder",
+        "schedule": crontab(minute=0, hour=1),  # 12:10 AM every day
+    },
+}
