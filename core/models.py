@@ -139,13 +139,10 @@ class ClientDeadline(models.Model):
             days=self.deadline_type.default_reminder_days
         )
 
-        # Auto-update status if due_date is in the past and status is pending
         if self.due_date < get_today_local() and self.status == "pending":
             self.status = "overdue"
         elif self.due_date > get_today_local() and self.status == "overdue":
             self.status = "pending"
-
-        print(get_today_local())
 
         super().save(*args, **kwargs)
 

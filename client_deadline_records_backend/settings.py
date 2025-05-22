@@ -133,7 +133,7 @@ CELERY_TASK_SERIALIZER = "json"
 
 CELERY_BEAT_SCHEDULE = {
     "send-deadline-notifications": {
-        "task": "core.tasks.daily_reminder",
-        "schedule": crontab(minute=0, hour=1),  # 12:10 AM every day
+        "task": "core.tasks.daily_notification_reminder",
+        "schedule": crontab(minute=0, hour=6),  # 12:10 AM every day
     },
 }
