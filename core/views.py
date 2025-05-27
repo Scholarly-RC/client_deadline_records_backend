@@ -2,9 +2,10 @@
 import os
 from datetime import timedelta
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.db.models.deletion import RestrictedError
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import FileResponse, Http404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
@@ -441,8 +442,8 @@ class StatsAPIView(APIView):
 def download_client_document(request, file_id):
     try:
         client_document = ClientDocument.objects.get(id=file_id)
-        if client_document.uploaded_by != request.user:
-            raise HttpResponseForbidden("Permission denied.")
+        if client_document.uploaded_by != request.user and not request.user.is_admin:
+            raise PermissionDenied("Permission denied.")
     except ClientDocument.DoesNotExist:
         raise Http404("File not found")
 
