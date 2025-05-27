@@ -126,7 +126,7 @@ SIMPLE_JWT = {
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "localhost:3000")
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"  # Redis as broker
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
@@ -134,6 +134,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_BEAT_SCHEDULE = {
     "send-deadline-notifications": {
         "task": "core.tasks.daily_notification_reminder",
-        "schedule": crontab(minute=0, hour=6),  # 12:10 AM every day
+        "schedule": crontab(minute=0, hour=6),
     },
 }
