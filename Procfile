@@ -1,0 +1,1 @@
+web: yes yes | python manage.py collectstatic & python manage.py migrate & gunicorn client_deadline_records_backend.wsgi --log-file -
