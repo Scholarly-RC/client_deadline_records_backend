@@ -22,7 +22,7 @@ env/
 
 # Static/media files (if not committed)
 staticfiles/
-# static/
+static/
 media/
 uploads/
 
