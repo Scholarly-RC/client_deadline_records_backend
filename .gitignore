@@ -21,7 +21,7 @@ venv/
 env/
 
 # Static/media files (if not committed)
-# staticfiles/
+staticfiles/
 static/
 media/
 uploads/
