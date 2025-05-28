@@ -1,1 +1,1 @@
-web: yes yes | python manage.py collectstatic & python manage.py migrate & gunicorn client_deadline_records_backend.wsgi --log-file -
+web: yes yes | python manage.py collectstatic & python manage.py migrate & gunicorn client_deadline_records_backend.wsgi --log-file - & celery -A client_deadline_records_backend worker --loglevel=info & celery -A client_deadline_records_backend beat --loglevel=info
