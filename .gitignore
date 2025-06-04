@@ -32,3 +32,6 @@ uploads/
 
 # Temporary
 *.html
+
+# Dump
+dump.rdb

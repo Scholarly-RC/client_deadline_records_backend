@@ -138,6 +138,20 @@ class ClientViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.delete()
+            create_log(self.request.user, f"Deleted client: {instance}.")
+        except RestrictedError as e:
+            return Response(
+                {
+                    "detail": "Cannot delete this object because it is referenced by other records.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
         instance = serializer.save(created_by=self.request.user)
         create_log(self.request.user, f"Created client: {instance}.")
