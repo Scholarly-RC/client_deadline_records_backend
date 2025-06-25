@@ -26,6 +26,7 @@ from core.models import (
 )
 from core.serializers import (
     AppLogSerializer,
+    ClientBirthdaySerializer,
     ClientDeadlineSerializer,
     ClientDocumentSerializer,
     ClientSerializer,
@@ -137,6 +138,28 @@ class ClientViewSet(viewsets.ModelViewSet):
             ).distinct()
 
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="birthdays")
+    def get_birthdays(self, request):
+        today = get_today_local()
+        month = today.month
+
+        monthly_birthdays = self.get_queryset().filter(date_of_birth__month=month)
+
+        birthdays_today = monthly_birthdays.filter(date_of_birth=today)
+        upcoming_birthdays = monthly_birthdays.filter(date_of_birth__gt=today)
+        past_birthdays = monthly_birthdays.filter(date_of_birth__lt=today)
+
+        return Response(
+            {
+                "today": ClientBirthdaySerializer(birthdays_today, many=True).data,
+                "upcoming": ClientBirthdaySerializer(
+                    upcoming_birthdays, many=True
+                ).data,
+                "past": ClientBirthdaySerializer(past_birthdays, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
