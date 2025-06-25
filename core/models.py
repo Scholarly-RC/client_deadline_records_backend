@@ -54,6 +54,7 @@ class Client(models.Model):
     contact_person = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(blank=True, null=True)
     address = models.TextField(blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     notes = models.TextField(blank=True)
