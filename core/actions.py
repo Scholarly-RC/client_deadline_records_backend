@@ -1,9 +1,10 @@
-from core.models import AppLog, ClientDeadline, Notification
-from core.utils import get_today_local
+from core.models import AppLog, Client, ClientDeadline, Notification
+from core.utils import get_admin_users, get_today_local
 
 
 def create_log(user, details):
-    """Create a new log entry in the application log.
+    """
+    Create a new log entry in the application log.
 
     Args:
         user (User): The user associated with the log entry
@@ -13,7 +14,8 @@ def create_log(user, details):
 
 
 def create_notifications(recipient, title, message, link):
-    """Create a new notification for a user.
+    """
+    Create a new notification for a user.
 
     Args:
         recipient (User): The user who will receive the notification
@@ -27,7 +29,8 @@ def create_notifications(recipient, title, message, link):
 
 
 def send_notification_on_reminder_date():
-    """Send notifications for deadlines where today is the reminder date.
+    """
+    Send notifications for deadlines where today is the reminder date.
 
     Creates notifications for all users who have deadlines with reminder dates
     matching today's date.
@@ -43,7 +46,8 @@ def send_notification_on_reminder_date():
 
 
 def send_notification_for_due_tasks():
-    """Send notifications for deadlines that are due today.
+    """
+    Send notifications for deadlines that are due today.
 
     Creates urgent notifications for all users who have deadlines with due dates
     matching today's date.
@@ -97,4 +101,23 @@ def update_deadline_statuses():
                 title="Deadline Status Updated",
                 message=f"The deadline '{deadline.title}' (due {deadline.due_date}) has been reverted to Pending status.",
                 link=f"/deadlines/{deadline.id}",
+            )
+
+
+def send_client_birthday_notifications():
+    """
+    Send birthday notifications to admin users for clients whose birthday is today.
+
+    Checks all clients with birthdays matching today's date and sends notifications
+    to all admin users to acknowledge or celebrate the client's birthday.
+    The notification includes the client's name and a celebratory message.
+    """
+    today = get_today_local()
+    for client in Client.objects.filter(date_of_birth=today):
+        for admin in get_admin_users():
+            create_notifications(
+                recipient=admin,
+                title=f"Client Birthday: {client.name}",
+                message=f"Today is {client.name}'s birthday! Consider sending your wishes or acknowledging this special occasion.",
+                link="",
             )
