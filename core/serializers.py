@@ -175,6 +175,18 @@ class ClientSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
+class ClientBirthdaySerializer(serializers.ModelSerializer):
+    days_remaining = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Client
+        fields = ["name", "date_of_birth", "days_remaining"]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_days_remaining(self, obj):
+        return (obj.date_of_birth - get_today_local()).days
+
+
 class ClientDocumentSerializer(serializers.ModelSerializer):
     client = ClientMiniSerializer(read_only=True)
     client_id = serializers.PrimaryKeyRelatedField(
