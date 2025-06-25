@@ -117,7 +117,7 @@ def send_client_birthday_notifications():
         for admin in get_admin_users():
             create_notifications(
                 recipient=admin,
-                title=f"Client Birthday: {client.full_name}",
-                message=f"Today is {client.full_name}'s birthday! 🎉 Consider sending your wishes or acknowledging this special occasion.",
+                title=f"Client Birthday: {client.name}",
+                message=f"Today is {client.name}'s birthday! Consider sending your wishes or acknowledging this special occasion.",
                 link="",
             )
