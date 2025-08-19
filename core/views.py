@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.actions import create_log, create_notifications
+from core.filters import ClientFilter
 from core.models import (
     AppLog,
     Client,
@@ -121,10 +122,9 @@ class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     filter_backends = [
         DjangoFilterBackend,
-        filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = ["status"]
+    filterset_class = ClientFilter
     search_fields = ["name", "contact_person", "email", "address", "phone"]
     ordering_fields = ["name", "created_at"]
 

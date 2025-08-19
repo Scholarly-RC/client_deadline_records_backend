@@ -1,16 +1,11 @@
-### For Custom Filter Reference ###
+from django_filters import BaseInFilter, FilterSet
 
-# from django_filters import FilterSet
+from core.models import Client
 
-# from core.models import ClientDeadline
 
-# class ClientDeadlineFilter(FilterSet):
-#     class Meta:
-#         model = ClientDeadline
-#         fields = {
-#             "client": ["exact"],
-#             "deadline_type": ["exact"],
-#             "priority": ["exact"],
-#             "status": ["exact"],
-#             "assigned_to": ["exact"],
-#         }
+class ClientFilter(FilterSet):
+    category = BaseInFilter(field_name="category", lookup_expr="in")
+
+    class Meta:
+        model = Client
+        fields = ["category", "status"]

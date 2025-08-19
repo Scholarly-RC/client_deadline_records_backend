@@ -49,13 +49,23 @@ class Client(models.Model):
         ("active", "Active"),
         ("inactive", "Inactive"),
     ]
-
+    CATEGORY_CHOICES = [
+        ("TOE", "Tax (One Engagement)"),
+        ("TRP", "Tax (Regular Processing)"),
+        ("CMP", "Compliance"),
+        ("ACC", "Accounting"),
+        ("AUD", "Auditing"),
+        ("OCC", "Other Consultancy Client"),
+    ]
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(blank=True, null=True)
     address = models.TextField(blank=True)
+    category = models.CharField(
+        max_length=10, choices=CATEGORY_CHOICES, default="OCC", blank=True
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
