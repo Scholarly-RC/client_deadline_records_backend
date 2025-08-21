@@ -73,9 +73,9 @@ class Client(models.Model):
 
 
 class Compliance(models.Model):
-    description = models.TextField()
-    steps = models.CharField(max_length=255)
-    requirements = models.CharField(max_length=255)
+    description = models.CharField(max_length=255)
+    steps = models.CharField(max_length=255, blank=True, null=True)
+    requirements = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
@@ -86,10 +86,10 @@ class Compliance(models.Model):
     )
     engagement_date = models.DateField()
     deadline = models.DateField()
-    remarks = models.TextField(blank=True)
-    date_complied = models.DateField()
-    completion_date = models.DateField()
-    last_update = models.DateTimeField()
+    remarks = models.TextField(blank=True, null=True)
+    date_complied = models.DateField(blank=True, null=True)
+    completion_date = models.DateField(blank=True, null=True)
+    last_update = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         deadline_str = (
