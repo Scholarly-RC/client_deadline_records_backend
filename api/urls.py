@@ -6,6 +6,7 @@ from core.views import (
     ClientDeadlineViewSet,
     ClientDocumentViewSet,
     ClientViewSet,
+    ComplianceViewSet,
     DeadlineTypeViewSet,
     NotificationViewSet,
     StatsAPIView,
@@ -24,6 +25,8 @@ router.register(r"work-updates", WorkUpdateViewSet, basename="workupdate")
 router.register(r"client-documents", ClientDocumentViewSet)
 router.register(r"notifications", NotificationViewSet)
 router.register(r"app-logs", AppLogViewSet)
+router.register(r"compliance", ComplianceViewSet)
+
 
 urlpatterns = router.urls + [
     path("stats/", StatsAPIView.as_view(), name="stats"),

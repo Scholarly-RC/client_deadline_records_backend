@@ -6,20 +6,17 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 from django.utils.translation import gettext_lazy as _
 
+from core.choices import ClientStatus, TaskPriority, TaskStatus, UserRoles
 from core.utils import get_today_local
 
 
 class User(AbstractUser):
-    ROLE_CHOICES = [
-        ("admin", "Admin"),
-        ("staff", "Staff"),
-    ]
 
     middle_name = models.CharField(_("Middle Name"), max_length=150, blank=True)
     role = models.CharField(
         max_length=5,
-        choices=ROLE_CHOICES,
-        default="staff",
+        choices=UserRoles.choices,
+        default=UserRoles.STAFF,
     )
     updated = models.DateField(auto_now=True, null=True, blank=True)
 
@@ -45,28 +42,16 @@ class User(AbstractUser):
 
 
 class Client(models.Model):
-    STATUS_CHOICES = [
-        ("active", "Active"),
-        ("inactive", "Inactive"),
-    ]
-    CATEGORY_CHOICES = [
-        ("TOE", "Tax (One Engagement)"),
-        ("TRP", "Tax (Regular Processing)"),
-        ("CMP", "Compliance"),
-        ("ACC", "Accounting"),
-        ("AUD", "Auditing"),
-        ("OCC", "Other Consultancy Client"),
-    ]
+
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(blank=True, null=True)
     address = models.TextField(blank=True)
-    category = models.CharField(
-        max_length=10, choices=CATEGORY_CHOICES, default="OCC", blank=True
+    status = models.CharField(
+        max_length=10, choices=ClientStatus.choices, default=ClientStatus.ACTIVE
     )
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         User, on_delete=models.RESTRICT, null=True, related_name="clients_created"
@@ -85,6 +70,32 @@ class Client(models.Model):
     @property
     def is_active(self):
         return self.status == "active"
+
+
+class Compliance(models.Model):
+    description = models.TextField()
+    steps = models.CharField(max_length=255)
+    requirements = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
+    )
+    period_covered = models.CharField(max_length=255)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    priority = models.CharField(
+        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
+    )
+    engagement_date = models.DateField()
+    deadline = models.DateField()
+    remarks = models.TextField(blank=True)
+    date_complied = models.DateField()
+    completion_date = models.DateField()
+    last_update = models.DateTimeField()
+
+    def __str__(self):
+        deadline_str = (
+            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
+        )
+        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
 
 
 class DeadlineType(models.Model):

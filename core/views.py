@@ -14,12 +14,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.actions import create_log, create_notifications
-from core.filters import ClientFilter
 from core.models import (
     AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
+    Compliance,
     DeadlineType,
     Notification,
     User,
@@ -30,7 +30,10 @@ from core.serializers import (
     ClientBirthdaySerializer,
     ClientDeadlineSerializer,
     ClientDocumentSerializer,
+    ClientMiniSerializer,
     ClientSerializer,
+    ComplianceListSerializer,
+    ComplianceSerializer,
     DeadlineTypeSerializer,
     NotificationSerializer,
     UserMiniSerializer,
@@ -110,6 +113,14 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=["get"], url_path="users-with-deadlines")
+    def get_users_with_deadlines(self, request):
+        clients = (
+            self.get_queryset().filter(assigned_deadlines__isnull=False).distinct()
+        )
+        serializer = UserMiniSerializer(clients, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["get"], url_path="unread-notification-count")
     def get_unread_notification_count(self, request, pk=None):
         unread_count = self.get_object().notifications.filter(is_read=False).count()
@@ -124,7 +135,6 @@ class ClientViewSet(viewsets.ModelViewSet):
         DjangoFilterBackend,
         filters.OrderingFilter,
     ]
-    filterset_class = ClientFilter
     search_fields = ["name", "contact_person", "email", "address", "phone"]
     ordering_fields = ["name", "created_at"]
 
@@ -161,6 +171,12 @@ class ClientViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=False, methods=["get"], url_path="client-with-deadlines")
+    def get_client_with_deadlines(self, request):
+        clients = self.get_queryset().filter(deadlines__isnull=False).distinct()
+        serializer = ClientMiniSerializer(clients, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         try:
@@ -185,6 +201,146 @@ class ClientViewSet(viewsets.ModelViewSet):
             self.request.user,
             f"Updated client: {instance}. Status: {'Active' if instance.is_active else 'Inactive'}.",
         )
+
+
+class ComplianceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Compliance records
+
+    Provides CRUD operations for compliance tasks with filtering,
+    searching, and ordering capabilities.
+    """
+
+    queryset = Compliance.objects.select_related("assigned_to").all()
+    serializer_class = ComplianceSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "engagement_date": ["gte", "lte", "exact"],
+        "deadline": ["gte", "lte", "exact"],
+        "completion_date": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["description", "steps", "requirements", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "engagement_date",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return ComplianceListSerializer
+        return ComplianceSerializer
+
+    def perform_create(self, serializer):
+        """Set last_update timestamp when creating"""
+        serializer.save(last_update=timezone.now())
+
+    def perform_update(self, serializer):
+        """Set last_update timestamp when updating"""
+        serializer.save(last_update=timezone.now())
+
+    @action(detail=False, methods=["get"])
+    def overdue(self, request):
+        """Get all overdue compliance tasks"""
+        today = timezone.now().date()
+        overdue_tasks = self.get_queryset().filter(
+            deadline__lt=today,
+            status__in=[
+                "NOT_YET_STARTED",
+                "IN_PROGRESS",
+            ],  # Adjust based on your TaskStatus choices
+        )
+
+        serializer = self.get_serializer(overdue_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def due_soon(self, request):
+        """Get compliance tasks due within the next 7 days"""
+        from datetime import timedelta
+
+        today = timezone.now().date()
+        next_week = today + timedelta(days=7)
+
+        due_soon_tasks = self.get_queryset().filter(
+            deadline__gte=today,
+            deadline__lte=next_week,
+            status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
+        )
+
+        serializer = self.get_serializer(due_soon_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def by_user(self, request):
+        """Get compliance tasks grouped by assigned user"""
+        user_id = request.query_params.get("user_id")
+        if not user_id:
+            return Response(
+                {"error": "user_id parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_tasks = self.get_queryset().filter(assigned_to_id=user_id)
+        serializer = self.get_serializer(user_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def mark_completed(self, request, pk=None):
+        """Mark a compliance task as completed"""
+        compliance = self.get_object()
+
+        completion_date = request.data.get("completion_date", timezone.now().date())
+        date_complied = request.data.get("date_complied", timezone.now().date())
+        remarks = request.data.get("remarks", compliance.remarks)
+
+        compliance.status = "COMPLETED"  # Adjust based on your TaskStatus choices
+        compliance.completion_date = completion_date
+        compliance.date_complied = date_complied
+        compliance.remarks = remarks
+        compliance.last_update = timezone.now()
+        compliance.save()
+
+        serializer = self.get_serializer(compliance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Get compliance statistics"""
+        queryset = self.get_queryset()
+
+        stats = {
+            "total": queryset.count(),
+            "completed": queryset.filter(status="COMPLETED").count(),
+            "in_progress": queryset.filter(status="IN_PROGRESS").count(),
+            "not_started": queryset.filter(status="NOT_YET_STARTED").count(),
+            "overdue": queryset.filter(
+                deadline__lt=timezone.now().date(),
+                status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
+            ).count(),
+            "high_priority": queryset.filter(priority="HIGH").count(),
+            "medium_priority": queryset.filter(priority="MEDIUM").count(),
+            "low_priority": queryset.filter(priority="LOW").count(),
+        }
+
+        return Response(stats)
 
 
 class DeadlineTypeViewSet(viewsets.ModelViewSet):

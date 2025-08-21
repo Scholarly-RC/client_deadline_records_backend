@@ -1,4 +1,4 @@
-from django.utils import timezone
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from core.models import (
@@ -6,6 +6,7 @@ from core.models import (
     Client,
     ClientDeadline,
     ClientDocument,
+    Compliance,
     DeadlineType,
     Notification,
     User,
@@ -173,6 +174,82 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = "__all__"
         read_only_fields = ["created_at", "updated_at"]
+
+
+class ComplianceSerializer(serializers.ModelSerializer):
+    """Serializer for Compliance model"""
+
+    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
+
+    class Meta:
+        model = Compliance
+        fields = [
+            "id",
+            "description",
+            "steps",
+            "requirements",
+            "status",
+            "period_covered",
+            "assigned_to",
+            "assigned_to_detail",
+            "priority",
+            "engagement_date",
+            "deadline",
+            "remarks",
+            "date_complied",
+            "completion_date",
+            "last_update",
+        ]
+        read_only_fields = ["id", "last_update"]
+
+    def validate(self, data):
+        """Custom validation for date fields"""
+        engagement_date = data.get("engagement_date")
+        deadline = data.get("deadline")
+        completion_date = data.get("completion_date")
+        date_complied = data.get("date_complied")
+
+        # Validate that deadline is after engagement date
+        if engagement_date and deadline and deadline < engagement_date:
+            raise serializers.ValidationError(
+                "Deadline cannot be earlier than engagement date."
+            )
+
+        # Validate that completion date is not before engagement date
+        if engagement_date and completion_date and completion_date < engagement_date:
+            raise serializers.ValidationError(
+                "Completion date cannot be earlier than engagement date."
+            )
+
+        # Validate that date complied is not before engagement date
+        if engagement_date and date_complied and date_complied < engagement_date:
+            raise serializers.ValidationError(
+                "Date complied cannot be earlier than engagement date."
+            )
+
+        return data
+
+
+class ComplianceListSerializer(serializers.ModelSerializer):
+    """Simplified serializer for list views"""
+
+    assigned_to_name = serializers.CharField(
+        source="assigned_to.get_full_name", read_only=True
+    )
+
+    class Meta:
+        model = Compliance
+        fields = [
+            "id",
+            "description",
+            "status",
+            "assigned_to",
+            "assigned_to_name",
+            "priority",
+            "engagement_date",
+            "deadline",
+            "last_update",
+        ]
 
 
 class ClientBirthdaySerializer(serializers.ModelSerializer):
