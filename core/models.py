@@ -73,6 +73,7 @@ class Client(models.Model):
 
 
 class Compliance(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
     description = models.CharField(max_length=255)
     steps = models.CharField(max_length=255, blank=True, null=True)
     requirements = models.CharField(max_length=255, blank=True, null=True)
@@ -96,6 +97,9 @@ class Compliance(models.Model):
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+
+# class FinancialStatementPreparation(models.Model):
 
 
 class DeadlineType(models.Model):

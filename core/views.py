@@ -211,7 +211,7 @@ class ComplianceViewSet(viewsets.ModelViewSet):
     searching, and ordering capabilities.
     """
 
-    queryset = Compliance.objects.select_related("assigned_to").all()
+    queryset = Compliance.objects.select_related("assigned_to", "client").all()
     serializer_class = ComplianceSerializer
     filter_backends = [
         DjangoFilterBackend,
@@ -221,6 +221,7 @@ class ComplianceViewSet(viewsets.ModelViewSet):
 
     # Filtering options
     filterset_fields = {
+        "client": ["exact"],
         "status": ["exact", "in"],
         "priority": ["exact", "in"],
         "assigned_to": ["exact"],

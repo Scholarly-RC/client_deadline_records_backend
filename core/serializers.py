@@ -180,11 +180,14 @@ class ComplianceSerializer(serializers.ModelSerializer):
     """Serializer for Compliance model"""
 
     assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
+    client_detail = ClientMiniSerializer(source="client", read_only=True)
 
     class Meta:
         model = Compliance
         fields = [
             "id",
+            "client",
+            "client_detail",
             "description",
             "steps",
             "requirements",
@@ -233,6 +236,7 @@ class ComplianceSerializer(serializers.ModelSerializer):
 class ComplianceListSerializer(serializers.ModelSerializer):
     """Simplified serializer for list views"""
 
+    client_name = serializers.CharField(source="client.name", read_only=True)
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
@@ -241,6 +245,7 @@ class ComplianceListSerializer(serializers.ModelSerializer):
         model = Compliance
         fields = [
             "id",
+            "client_name",
             "description",
             "status",
             "assigned_to",
