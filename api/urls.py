@@ -13,6 +13,7 @@ from core.views import (
     UserViewSet,
     WorkUpdateViewSet,
 )
+from api.views import FinancialStatementPreparationViewSet
 
 app_name = "api"
 
@@ -26,6 +27,7 @@ router.register(r"client-documents", ClientDocumentViewSet)
 router.register(r"notifications", NotificationViewSet)
 router.register(r"app-logs", AppLogViewSet)
 router.register(r"compliance", ComplianceViewSet)
+router.register(r"financial-statement-preparations", FinancialStatementPreparationViewSet)
 
 
 urlpatterns = router.urls + [

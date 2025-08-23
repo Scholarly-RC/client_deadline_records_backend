@@ -99,7 +99,28 @@ class Compliance(models.Model):
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
 
 
-# class FinancialStatementPreparation(models.Model):
+class FinancialStatementPreparation(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
+    type = models.CharField(max_length=255)
+    needed_data = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
+    )
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    priority = models.CharField(
+        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
+    )
+    deadline = models.DateField()
+    remarks = models.TextField(blank=True, null=True)
+    date_complied = models.DateField(blank=True, null=True)
+    completion_date = models.DateField(blank=True, null=True)
+    last_update = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        deadline_str = (
+            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
+        )
+        return f"{self.type[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
 
 
 class DeadlineType(models.Model):
