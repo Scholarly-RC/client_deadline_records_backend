@@ -15,17 +15,25 @@ from rest_framework.views import APIView
 
 from core.actions import create_log, create_notifications
 from core.models import (
+    AccountingAudit,
     AppLog,
     Client,
     ClientDeadline,
     ClientDocument,
     Compliance,
     DeadlineType,
+    FinanceImplementation,
+    FinancialStatementPreparation,
+    HumanResourceImplementation,
+    MiscellaneousTasks,
     Notification,
+    TaxCase,
     User,
     WorkUpdate,
 )
 from core.serializers import (
+    AccountingAuditListSerializer,
+    AccountingAuditSerializer,
     AppLogSerializer,
     ClientBirthdaySerializer,
     ClientDeadlineSerializer,
@@ -35,7 +43,17 @@ from core.serializers import (
     ComplianceListSerializer,
     ComplianceSerializer,
     DeadlineTypeSerializer,
+    FinanceImplementationListSerializer,
+    FinanceImplementationSerializer,
+    FinancialStatementPreparationListSerializer,
+    FinancialStatementPreparationSerializer,
+    HumanResourceImplementationListSerializer,
+    HumanResourceImplementationSerializer,
+    MiscellaneousTasksListSerializer,
+    MiscellaneousTasksSerializer,
     NotificationSerializer,
+    TaxCaseListSerializer,
+    TaxCaseSerializer,
     UserMiniSerializer,
     UserSerializer,
     WorkUpdateSerializer,
@@ -203,6 +221,147 @@ class ClientViewSet(viewsets.ModelViewSet):
         )
 
 
+class AccountingAuditViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing AccountingAudit records
+
+    Provides CRUD operations for accounting audit tasks with filtering,
+    searching, and ordering capabilities.
+    """
+
+    queryset = AccountingAudit.objects.select_related("assigned_to", "client").all()
+    serializer_class = AccountingAuditSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "engagement_date": ["gte", "lte", "exact"],
+        "deadline": ["gte", "lte", "exact"],
+        "completion_date": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["description", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "engagement_date",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return AccountingAuditListSerializer
+        return AccountingAuditSerializer
+
+    def perform_create(self, serializer):
+        """Set last_update timestamp when creating"""
+        serializer.save(last_update=timezone.now())
+
+    def perform_update(self, serializer):
+        """Set last_update timestamp when updating"""
+        serializer.save(last_update=timezone.now())
+
+    @action(detail=False, methods=["get"])
+    def overdue(self, request):
+        """Get all overdue accounting audit tasks"""
+        today = timezone.now().date()
+        overdue_tasks = self.get_queryset().filter(
+            deadline__lt=today,
+            status__in=[
+                "NOT_YET_STARTED",
+                "IN_PROGRESS",
+            ],
+        )
+
+        serializer = self.get_serializer(overdue_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def due_soon(self, request):
+        """Get accounting audit tasks due within the next 7 days"""
+        from datetime import timedelta
+
+        today = timezone.now().date()
+        next_week = today + timedelta(days=7)
+
+        due_soon_tasks = self.get_queryset().filter(
+            deadline__gte=today,
+            deadline__lte=next_week,
+            status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
+        )
+
+        serializer = self.get_serializer(due_soon_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def by_user(self, request):
+        """Get accounting audit tasks grouped by assigned user"""
+        user_id = request.query_params.get("user_id")
+        if not user_id:
+            return Response(
+                {"error": "user_id parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_tasks = self.get_queryset().filter(assigned_to_id=user_id)
+        serializer = self.get_serializer(user_tasks, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def mark_completed(self, request, pk=None):
+        """Mark an accounting audit task as completed"""
+        audit = self.get_object()
+
+        completion_date = request.data.get("completion_date", timezone.now().date())
+        date_complied = request.data.get("date_complied", timezone.now().date())
+        remarks = request.data.get("remarks", audit.remarks)
+
+        audit.status = "COMPLETED"
+        audit.completion_date = completion_date
+        audit.date_complied = date_complied
+        audit.remarks = remarks
+        audit.last_update = timezone.now()
+        audit.save()
+
+        serializer = self.get_serializer(audit)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def statistics(self, request):
+        """Get accounting audit statistics"""
+        queryset = self.get_queryset()
+
+        stats = {
+            "total": queryset.count(),
+            "completed": queryset.filter(status="COMPLETED").count(),
+            "in_progress": queryset.filter(status="IN_PROGRESS").count(),
+            "not_started": queryset.filter(status="NOT_YET_STARTED").count(),
+            "overdue": queryset.filter(
+                deadline__lt=timezone.now().date(),
+                status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
+            ).count(),
+            "high_priority": queryset.filter(priority="HIGH").count(),
+            "medium_priority": queryset.filter(priority="MEDIUM").count(),
+            "low_priority": queryset.filter(priority="LOW").count(),
+        }
+
+        return Response(stats)
+
+
 class ComplianceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Compliance records
@@ -342,6 +501,230 @@ class ComplianceViewSet(viewsets.ModelViewSet):
         }
 
         return Response(stats)
+
+
+class FinancialStatementPreparationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing FinancialStatementPreparation records
+    """
+
+    queryset = FinancialStatementPreparation.objects.select_related(
+        "assigned_to", "client"
+    ).all()
+    serializer_class = FinancialStatementPreparationSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "deadline": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["type", "needed_data", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return FinancialStatementPreparationListSerializer
+        return FinancialStatementPreparationSerializer
+
+
+class FinanceImplementationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing FinanceImplementation records
+    """
+
+    queryset = FinanceImplementation.objects.select_related(
+        "assigned_to", "client"
+    ).all()
+    serializer_class = FinanceImplementationSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "deadline": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["description", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return FinanceImplementationListSerializer
+        return FinanceImplementationSerializer
+
+
+class HumanResourceImplementationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing HumanResourceImplementation records
+    """
+
+    queryset = HumanResourceImplementation.objects.select_related(
+        "assigned_to", "client"
+    ).all()
+    serializer_class = HumanResourceImplementationSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "deadline": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["description", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return HumanResourceImplementationListSerializer
+        return HumanResourceImplementationSerializer
+
+
+class MiscellaneousTasksViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing MiscellaneousTasks records
+    """
+
+    queryset = MiscellaneousTasks.objects.select_related("assigned_to", "client").all()
+    serializer_class = MiscellaneousTasksSerializer
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "deadline": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = ["area", "description", "remarks"]
+
+    # Ordering options
+    ordering_fields = [
+        "deadline",
+        "priority",
+        "status",
+        "last_update",
+    ]
+    ordering = ["-last_update"]  # Default ordering
+
+    def get_serializer_class(self):
+        """Use different serializer for list action"""
+        if self.action == "list":
+            return MiscellaneousTasksListSerializer
+        return MiscellaneousTasksSerializer
+
+
+class TaxCaseViewSet(viewsets.ModelViewSet):
+    queryset = TaxCase.objects.select_related("client", "assigned_to").all()
+    serializer_class = TaxCaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    filterset_fields = {
+        "client": ["exact"],
+        "category": ["exact", "in"],
+        "type": ["exact", "in"],
+        "form": ["exact", "in"],
+        "status": ["exact", "in"],
+        "priority": ["exact", "in"],
+        "assigned_to": ["exact"],
+        "engagement_date": ["gte", "lte", "exact"],
+        "deadline": ["gte", "lte", "exact"],
+        "date_complied": ["gte", "lte", "exact"],
+        "completion_date": ["gte", "lte", "exact"],
+        "last_update": ["gte", "lte", "exact"],
+    }
+
+    search_fields = ["period_covered", "working_paper", "remarks"]
+
+    ordering_fields = [
+        "last_followup",
+        "tax_payable",
+        "status",
+        "priority",
+        "engagement_date",
+        "deadline",
+        "date_complied",
+        "completion_date",
+        "last_update",
+    ]
+    ordering = ["-last_followup"]  # Default ordering
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return TaxCaseListSerializer
+        return TaxCaseSerializer
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        create_log(self.request.user, f"Created tax case: {instance}.")
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        create_log(self.request.user, f"Updated tax case: {instance}.")
 
 
 class DeadlineTypeViewSet(viewsets.ModelViewSet):
