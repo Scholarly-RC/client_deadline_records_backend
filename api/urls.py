@@ -2,18 +2,23 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from core.views import (
+    AccountingAuditViewSet,
     AppLogViewSet,
     ClientDeadlineViewSet,
     ClientDocumentViewSet,
     ClientViewSet,
     ComplianceViewSet,
     DeadlineTypeViewSet,
+    FinanceImplementationViewSet,
+    FinancialStatementPreparationViewSet,
+    HumanResourceImplementationViewSet,
+    MiscellaneousTasksViewSet,
     NotificationViewSet,
     StatsAPIView,
+    TaxCaseViewSet,
     UserViewSet,
     WorkUpdateViewSet,
 )
-from api.views import FinancialStatementPreparationViewSet
 
 app_name = "api"
 
@@ -27,7 +32,16 @@ router.register(r"client-documents", ClientDocumentViewSet)
 router.register(r"notifications", NotificationViewSet)
 router.register(r"app-logs", AppLogViewSet)
 router.register(r"compliance", ComplianceViewSet)
-router.register(r"financial-statement-preparations", FinancialStatementPreparationViewSet)
+router.register(r"accounting-audits", AccountingAuditViewSet)
+router.register(
+    r"financial-statement-preparations",
+    FinancialStatementPreparationViewSet,
+    basename="financial-statement-preparation",
+)
+router.register(r"finance-implementations", FinanceImplementationViewSet)
+router.register(r"human-resource-implementations", HumanResourceImplementationViewSet)
+router.register(r"miscellaneous-tasks", MiscellaneousTasksViewSet)
+router.register(r"tax-cases", TaxCaseViewSet)
 
 
 urlpatterns = router.urls + [
