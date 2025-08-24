@@ -5,12 +5,8 @@ from django.utils.translation import gettext_lazy as _
 from core.models import (
     AppLog,
     Client,
-    ClientDeadline,
-    ClientDocument,
-    DeadlineType,
     Notification,
     User,
-    WorkUpdate,
 )
 
 
@@ -70,9 +66,5 @@ class CustomUserAdmin(UserAdmin):
 # Register your models here.
 admin.site.register(AppLog)
 admin.site.register(Client)
-admin.site.register(ClientDeadline)
-admin.site.register(ClientDocument)
-admin.site.register(DeadlineType)
 admin.site.register(Notification)
 admin.site.register(User, CustomUserAdmin)
-admin.site.register(WorkUpdate)

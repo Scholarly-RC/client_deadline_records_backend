@@ -5,10 +5,7 @@ from core.models import (
     AccountingAudit,
     AppLog,
     Client,
-    ClientDeadline,
-    ClientDocument,
     Compliance,
-    DeadlineType,
     FinanceImplementation,
     FinancialStatementPreparation,
     HumanResourceImplementation,
@@ -16,8 +13,8 @@ from core.models import (
     Notification,
     TaxCase,
     User,
-    WorkUpdate,
 )
+
 from core.utils import get_today_local
 
 # =======================
@@ -42,42 +39,6 @@ class ClientMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ["id", "name"]
-
-
-class DeadlineTypeMiniSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DeadlineType
-        fields = ["id", "name"]
-
-
-class ClientDeadlineMiniSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = ClientDeadline
-        fields = ["id", "due_date", "status"]
-
-
-class ClientDocumentMiniSerializer(serializers.ModelSerializer):
-    size = serializers.SerializerMethodField()
-    uploaded_by = UserMiniSerializer()
-
-    class Meta:
-        model = ClientDocument
-        fields = ["id", "name", "file", "size", "uploaded_by", "uploaded_at"]
-
-    def get_size(self, obj):
-        if obj.file:
-            size_mb = round(obj.file.size / (1024 * 1024), 2)
-            return f"{size_mb} MB"
-        return None
-
-
-class WorkUpdateMiniSerializer(serializers.ModelSerializer):
-    created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
-
-    class Meta:
-        model = WorkUpdate
-        fields = ["id", "status", "notes", "created_at"]
 
 
 # =======================
@@ -163,12 +124,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
-
-class DeadlineTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DeadlineType
-        fields = "__all__"
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -683,81 +638,6 @@ class ClientBirthdaySerializer(serializers.ModelSerializer):
 
     def get_days_remaining(self, obj):
         return (obj.date_of_birth - get_today_local()).days
-
-
-class ClientDocumentSerializer(serializers.ModelSerializer):
-    client = ClientMiniSerializer(read_only=True)
-    client_id = serializers.PrimaryKeyRelatedField(
-        queryset=Client.objects.all(), source="client", write_only=True
-    )
-    deadline = ClientDeadlineMiniSerializer(read_only=True)
-    deadline_id = serializers.PrimaryKeyRelatedField(
-        queryset=ClientDeadline.objects.all(), source="deadline", write_only=True
-    )
-    uploaded_by = UserMiniSerializer(read_only=True)
-    file_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ClientDocument
-        fields = "__all__"
-        read_only_fields = ["uploaded_at"]
-
-    def get_file_url(self, obj):
-        request = self.context.get("request")
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
-        return None
-
-
-class ClientDeadlineSerializer(serializers.ModelSerializer):
-    client = ClientMiniSerializer(read_only=True)
-    client_id = serializers.PrimaryKeyRelatedField(
-        queryset=Client.objects.all(), source="client", write_only=True
-    )
-    deadline_type = DeadlineTypeMiniSerializer(read_only=True)
-    deadline_type_id = serializers.PrimaryKeyRelatedField(
-        queryset=DeadlineType.objects.all(), source="deadline_type", write_only=True
-    )
-    assigned_to = UserMiniSerializer(read_only=True)
-    assigned_to_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        source="assigned_to",
-        write_only=True,
-        allow_null=True,
-    )
-    created_by = UserMiniSerializer(read_only=True)
-    days_remaining = serializers.SerializerMethodField()
-    is_overdue = serializers.SerializerMethodField()
-    documents = ClientDocumentMiniSerializer(read_only=True, many=True)
-    work_updates = WorkUpdateMiniSerializer(read_only=True, many=True)
-
-    class Meta:
-        model = ClientDeadline
-        fields = "__all__"
-        read_only_fields = ["created_at", "updated_at", "status"]
-
-    def get_days_remaining(self, obj):
-        return (obj.due_date - get_today_local()).days
-
-    def get_is_overdue(self, obj):
-        return obj.due_date < get_today_local() and obj.status not in [
-            "completed",
-            "cancelled",
-        ]
-
-
-class WorkUpdateSerializer(serializers.ModelSerializer):
-    deadline = ClientDeadlineMiniSerializer(read_only=True)
-    deadline_id = serializers.PrimaryKeyRelatedField(
-        queryset=ClientDeadline.objects.all(), source="deadline", write_only=True
-    )
-    created_by = UserMiniSerializer(read_only=True)
-    created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
-
-    class Meta:
-        model = WorkUpdate
-        fields = "__all__"
-        read_only_fields = ["created_at"]
 
 
 class NotificationSerializer(serializers.ModelSerializer):

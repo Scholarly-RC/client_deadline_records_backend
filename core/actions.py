@@ -1,4 +1,4 @@
-from core.models import AppLog, Client, ClientDeadline, Notification
+from core.models import AppLog, Client, Notification
 from core.utils import get_admin_users, get_today_local
 
 
