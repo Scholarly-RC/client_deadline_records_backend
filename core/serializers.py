@@ -244,6 +244,12 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = AccountingAudit
@@ -257,6 +263,7 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -325,6 +332,12 @@ class ComplianceListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = Compliance
@@ -338,6 +351,7 @@ class ComplianceListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -376,6 +390,11 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = FinancialStatementPreparation
@@ -389,6 +408,7 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
             "assigned_to_name",
             "priority",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -455,6 +475,12 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = FinanceImplementation
@@ -468,6 +494,7 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -534,6 +561,12 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = HumanResourceImplementation
@@ -547,6 +580,7 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -614,6 +648,12 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
 
     class Meta:
         model = MiscellaneousTasks
@@ -628,6 +668,7 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "completion_date",
             "last_update",
         ]
 
@@ -796,6 +837,14 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(
         source="assigned_to.get_full_name", read_only=True
     )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+
+    completion_date = serializers.DateTimeField(
+        format="%b %d, %Y %I:%M %p", read_only=True
+    )
+
     category_name = serializers.SerializerMethodField()
     type_name = serializers.SerializerMethodField()
     form_name = serializers.SerializerMethodField()
@@ -819,6 +868,7 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
             "priority",
             "engagement_date",
             "deadline",
+            "last_update",
             "status",
             "date_complied",
             "completion_date",
