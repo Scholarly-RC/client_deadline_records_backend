@@ -89,7 +89,7 @@ class Compliance(models.Model):
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
     period_covered = models.CharField(max_length=255)
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='compliances_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -114,7 +114,7 @@ class FinancialStatementPreparation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='financial_statement_preparations_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -140,7 +140,7 @@ class AccountingAudit(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='accounting_audits_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -165,7 +165,7 @@ class FinanceImplementation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='finance_implementations_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -190,7 +190,7 @@ class HumanResourceImplementation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='human_resource_implementations_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -216,7 +216,7 @@ class MiscellaneousTasks(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='miscellaneous_tasks_assigned_to')
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -265,7 +265,7 @@ class TaxCase(models.Model):
         default=0.00,
     )
     last_followup = models.DateField(blank=True, null=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT)
+    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='tax_cases_assigned_to')
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
