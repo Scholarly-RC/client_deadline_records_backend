@@ -372,6 +372,27 @@ class AccountingAuditViewSet(viewsets.ModelViewSet):
 
         return Response(stats)
 
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class ComplianceViewSet(viewsets.ModelViewSet):
     """
