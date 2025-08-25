@@ -15,7 +15,7 @@ from core.choices import (
     TypeOfTaxCase,
     UserRoles,
 )
-from core.utils import get_today_local
+from core.utils import get_now_local, get_today_local
 
 
 class User(AbstractUser):
@@ -89,7 +89,9 @@ class Compliance(models.Model):
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
     period_covered = models.CharField(max_length=255)
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='compliances_assigned_to')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="compliances_assigned_to"
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -100,11 +102,20 @@ class Compliance(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         deadline_str = (
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class FinancialStatementPreparation(models.Model):
@@ -114,7 +125,11 @@ class FinancialStatementPreparation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='financial_statement_preparations_assigned_to')
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.RESTRICT,
+        related_name="financial_statement_preparations_assigned_to",
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -123,6 +138,8 @@ class FinancialStatementPreparation(models.Model):
     date_complied = models.DateField(blank=True, null=True)
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
+
+    status_history = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         deadline_str = (
@@ -132,6 +149,13 @@ class FinancialStatementPreparation(models.Model):
             f"{self.type[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
         )
 
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
+
 
 class AccountingAudit(models.Model):
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
@@ -140,7 +164,9 @@ class AccountingAudit(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='accounting_audits_assigned_to')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="accounting_audits_assigned_to"
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -151,11 +177,20 @@ class AccountingAudit(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         deadline_str = (
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class FinanceImplementation(models.Model):
@@ -165,7 +200,11 @@ class FinanceImplementation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='finance_implementations_assigned_to')
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.RESTRICT,
+        related_name="finance_implementations_assigned_to",
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -176,11 +215,20 @@ class FinanceImplementation(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         deadline_str = (
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class HumanResourceImplementation(models.Model):
@@ -190,7 +238,11 @@ class HumanResourceImplementation(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='human_resource_implementations_assigned_to')
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.RESTRICT,
+        related_name="human_resource_implementations_assigned_to",
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -201,11 +253,20 @@ class HumanResourceImplementation(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         deadline_str = (
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class MiscellaneousTasks(models.Model):
@@ -216,7 +277,9 @@ class MiscellaneousTasks(models.Model):
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='miscellaneous_tasks_assigned_to')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="miscellaneous_tasks_assigned_to"
+    )
     priority = models.CharField(
         max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
@@ -227,11 +290,20 @@ class MiscellaneousTasks(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         deadline_str = (
             self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
         )
         return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class TaxCase(models.Model):
@@ -265,7 +337,9 @@ class TaxCase(models.Model):
         default=0.00,
     )
     last_followup = models.DateField(blank=True, null=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='tax_cases_assigned_to')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="tax_cases_assigned_to"
+    )
     status = models.CharField(
         max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
     )
@@ -279,8 +353,17 @@ class TaxCase(models.Model):
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
 
+    status_history = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         return f"{self.category} - {self.type} for {self.client.name} ({self.status})"
+
+    def add_status_update(self, status, remarks):
+        self.last_update = get_now_local()
+        self.status_history.append(
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        )
+        self.save(update_fields=["status_history", "last_update"])
 
 
 class Notification(models.Model):
