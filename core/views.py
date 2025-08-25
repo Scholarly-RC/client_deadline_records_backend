@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.actions import create_log, create_notifications
+from core.choices import TaskStatus
 from core.models import (
     AccountingAudit,
     AppLog,
@@ -76,7 +77,7 @@ class IsOwnerOrStaff(permissions.BasePermission):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.exclude(is_superuser=True).prefetch_related("logs")
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserSerializer
     filter_backends = [
         DjangoFilterBackend,
@@ -124,6 +125,44 @@ class UserViewSet(viewsets.ModelViewSet):
         unread_count = self.get_object().notifications.filter(is_read=False).count()
         return Response({"unread_count": unread_count}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["get"], url_path="deadlines-tasks")
+    def get_user_deadlines_tasks(self, request, pk=None):
+        user = self.get_object()
+
+        compliance_tasks = user.compliances_assigned_to.all()
+        financial_statement_preparations = (
+            user.financial_statement_preparations_assigned_to.all()
+        )
+        accounting_audits = user.accounting_audits_assigned_to.all()
+        finance_implementations = user.finance_implementations_assigned_to.all()
+        human_resource_implementations = (
+            user.human_resource_implementations_assigned_to.all()
+        )
+        miscellaneous_tasks = user.miscellaneous_tasks_assigned_to.all()
+        tax_cases = user.tax_cases_assigned_to.all()
+
+        response_data = {
+            "compliance": ComplianceListSerializer(compliance_tasks, many=True).data,
+            "financial_statement_preparations": FinancialStatementPreparationListSerializer(
+                financial_statement_preparations, many=True
+            ).data,
+            "accounting_audits": AccountingAuditListSerializer(
+                accounting_audits, many=True
+            ).data,
+            "finance_implementations": FinanceImplementationListSerializer(
+                finance_implementations, many=True
+            ).data,
+            "human_resource_implementations": HumanResourceImplementationListSerializer(
+                human_resource_implementations, many=True
+            ).data,
+            "miscellaneous_tasks": MiscellaneousTasksListSerializer(
+                miscellaneous_tasks, many=True
+            ).data,
+            "tax_cases": TaxCaseListSerializer(tax_cases, many=True).data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
 
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.select_related("created_by")
@@ -141,9 +180,7 @@ class ClientViewSet(viewsets.ModelViewSet):
 
         # Non-staff users only see clients they created
         if not self.request.user.is_admin:
-            queryset = queryset.filter(
-                created_by=self.request.user
-            ).distinct()
+            queryset = queryset.filter(created_by=self.request.user).distinct()
 
         return queryset
 
@@ -476,6 +513,27 @@ class ComplianceViewSet(viewsets.ModelViewSet):
 
         return Response(stats)
 
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class FinancialStatementPreparationViewSet(viewsets.ModelViewSet):
     """
@@ -518,6 +576,27 @@ class FinancialStatementPreparationViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return FinancialStatementPreparationListSerializer
         return FinancialStatementPreparationSerializer
+
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class FinanceImplementationViewSet(viewsets.ModelViewSet):
@@ -562,6 +641,27 @@ class FinanceImplementationViewSet(viewsets.ModelViewSet):
             return FinanceImplementationListSerializer
         return FinanceImplementationSerializer
 
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class HumanResourceImplementationViewSet(viewsets.ModelViewSet):
     """
@@ -605,6 +705,27 @@ class HumanResourceImplementationViewSet(viewsets.ModelViewSet):
             return HumanResourceImplementationListSerializer
         return HumanResourceImplementationSerializer
 
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class MiscellaneousTasksViewSet(viewsets.ModelViewSet):
     """
@@ -645,6 +766,27 @@ class MiscellaneousTasksViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return MiscellaneousTasksListSerializer
         return MiscellaneousTasksSerializer
+
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class TaxCaseViewSet(viewsets.ModelViewSet):
@@ -699,6 +841,27 @@ class TaxCaseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.save()
         create_log(self.request.user, f"Updated tax case: {instance}.")
+
+    @action(detail=True, methods=["POST"], url_path="update-deadline")
+    def update_deadline(self, request, pk=None):
+        deadline = self.get_object()
+        try:
+            updated_status = request.data.get("status")
+            updated_remarks = request.data.get("remarks")
+            deadline.status = TaskStatus(updated_status).value
+            deadline.remarks = updated_remarks
+            deadline.save()
+            deadline.add_status_update(status=updated_status, remarks=updated_remarks)
+            serializer = self.get_serializer(deadline)
+            return Response(
+                data=serializer.data,
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                data={"message": f"Something went wrong. {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class StatsAPIView(APIView):
