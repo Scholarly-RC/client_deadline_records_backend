@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
@@ -15,6 +16,7 @@ from core.models import (
     User,
 )
 from core.utils import get_today_local
+from core.choices import TaskStatus
 
 # =======================
 # Mini Serializers
@@ -205,6 +207,7 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = AccountingAudit
@@ -222,12 +225,28 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class ComplianceSerializer(serializers.ModelSerializer):
@@ -301,6 +320,7 @@ class ComplianceListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = Compliance
@@ -318,12 +338,28 @@ class ComplianceListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class FinancialStatementPreparationSerializer(serializers.ModelSerializer):
@@ -366,6 +402,7 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = FinancialStatementPreparation
@@ -383,12 +420,28 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class FinanceImplementationSerializer(serializers.ModelSerializer):
@@ -460,6 +513,7 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = FinanceImplementation
@@ -477,12 +531,28 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class HumanResourceImplementationSerializer(serializers.ModelSerializer):
@@ -554,6 +624,7 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = HumanResourceImplementation
@@ -571,12 +642,28 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class MiscellaneousTasksSerializer(serializers.ModelSerializer):
@@ -649,6 +736,7 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = MiscellaneousTasks
@@ -667,12 +755,28 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_deadline_days_remaining(self, obj):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class ClientBirthdaySerializer(serializers.ModelSerializer):
@@ -776,6 +880,7 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
     type_name = serializers.SerializerMethodField()
     form_name = serializers.SerializerMethodField()
     deadline_days_remaining = serializers.SerializerMethodField()
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = TaxCase
@@ -802,6 +907,7 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
             "completion_date",
             "deadline_days_remaining",
             "remarks",
+            "status_history",
         ]
 
     def get_category_name(self, obj):
@@ -817,6 +923,21 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+
+    def get_status_history(self, obj):
+        history = obj.status_history or []
+        formatted = []
+        for item in history:
+            formatted.append(
+                {
+                    "status": TaskStatus(item["status"]).label,
+                    "remarks": item["remarks"],
+                    "date": datetime.fromisoformat(item["date"]).strftime(
+                        "%B %d, %Y %I:%M %p"
+                    ),
+                }
+            )
+        return formatted
 
 
 class AppLogSerializer(serializers.ModelSerializer):

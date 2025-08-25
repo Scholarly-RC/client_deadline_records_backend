@@ -33,7 +33,6 @@ from core.serializers import (
     AccountingAuditSerializer,
     AppLogSerializer,
     ClientBirthdaySerializer,
-    ClientMiniSerializer,
     ClientSerializer,
     ComplianceListSerializer,
     ComplianceSerializer,
@@ -382,7 +381,7 @@ class AccountingAuditViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = AccountingAuditListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -544,7 +543,7 @@ class ComplianceViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = ComplianceListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -608,7 +607,7 @@ class FinancialStatementPreparationViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = FinancialStatementPreparationListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -672,7 +671,7 @@ class FinanceImplementationViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = FinanceImplementationListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -736,7 +735,7 @@ class HumanResourceImplementationViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = HumanResourceImplementationListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -798,7 +797,7 @@ class MiscellaneousTasksViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = MiscellaneousTasksListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,
@@ -873,7 +872,7 @@ class TaxCaseViewSet(viewsets.ModelViewSet):
             deadline.remarks = updated_remarks
             deadline.save()
             deadline.add_status_update(status=updated_status, remarks=updated_remarks)
-            serializer = self.get_serializer(deadline)
+            serializer = TaxCaseListSerializer(deadline)
             return Response(
                 data=serializer.data,
                 status=status.HTTP_200_OK,

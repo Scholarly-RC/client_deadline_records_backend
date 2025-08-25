@@ -112,8 +112,9 @@ class Compliance(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -151,8 +152,9 @@ class FinancialStatementPreparation(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -187,8 +189,9 @@ class AccountingAudit(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -225,8 +228,9 @@ class FinanceImplementation(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -263,8 +267,9 @@ class HumanResourceImplementation(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -300,8 +305,9 @@ class MiscellaneousTasks(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
@@ -360,8 +366,9 @@ class TaxCase(models.Model):
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
-        self.status_history.append(
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()}
+        self.status_history.insert(
+            0,
+            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
 
