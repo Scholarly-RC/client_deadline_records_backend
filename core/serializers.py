@@ -14,7 +14,6 @@ from core.models import (
     TaxCase,
     User,
 )
-
 from core.utils import get_today_local
 
 # =======================
@@ -205,6 +204,7 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = AccountingAudit
@@ -220,7 +220,14 @@ class AccountingAuditListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class ComplianceSerializer(serializers.ModelSerializer):
@@ -293,6 +300,7 @@ class ComplianceListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = Compliance
@@ -308,7 +316,14 @@ class ComplianceListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class FinancialStatementPreparationSerializer(serializers.ModelSerializer):
@@ -350,6 +365,7 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = FinancialStatementPreparation
@@ -365,7 +381,14 @@ class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class FinanceImplementationSerializer(serializers.ModelSerializer):
@@ -436,6 +459,7 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = FinanceImplementation
@@ -451,7 +475,14 @@ class FinanceImplementationListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class HumanResourceImplementationSerializer(serializers.ModelSerializer):
@@ -522,6 +553,7 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = HumanResourceImplementation
@@ -537,7 +569,14 @@ class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class MiscellaneousTasksSerializer(serializers.ModelSerializer):
@@ -609,6 +648,7 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
         format="%b %d, %Y %I:%M %p", read_only=True
     )
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = MiscellaneousTasks
@@ -625,7 +665,14 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
             "deadline",
             "completion_date",
             "last_update",
+            "deadline_days_remaining",
+            "remarks",
         ]
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class ClientBirthdaySerializer(serializers.ModelSerializer):
@@ -728,6 +775,7 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     type_name = serializers.SerializerMethodField()
     form_name = serializers.SerializerMethodField()
+    deadline_days_remaining = serializers.SerializerMethodField()
 
     class Meta:
         model = TaxCase
@@ -752,6 +800,8 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
             "status",
             "date_complied",
             "completion_date",
+            "deadline_days_remaining",
+            "remarks",
         ]
 
     def get_category_name(self, obj):
@@ -762,6 +812,11 @@ class TaxCaseListSerializer(serializers.ModelSerializer):
 
     def get_form_name(self, obj):
         return obj.get_form_display()
+
+    def get_deadline_days_remaining(self, obj):
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
 
 
 class AppLogSerializer(serializers.ModelSerializer):
