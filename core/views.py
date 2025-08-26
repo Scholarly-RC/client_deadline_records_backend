@@ -13,16 +13,33 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.actions import create_log, create_notifications
+from core.actions import (
+    create_log,
+    create_notifications,
+    initiate_task_approval,
+    process_task_approval,
+)
 from core.choices import TaskStatus
-from core.models import AppLog, Client, Notification, Task, User
+from core.models import (
+    AppLog,
+    Client,
+    Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
+    User,
+)
 from core.serializers import (
     AppLogSerializer,
     ClientBirthdaySerializer,
     ClientSerializer,
+    InitiateApprovalSerializer,
     NotificationSerializer,
+    ProcessApprovalSerializer,
+    TaskApprovalSerializer,
     TaskListSerializer,
     TaskSerializer,
+    TaskStatusHistorySerializer,
     UserMiniSerializer,
     UserSerializer,
 )
@@ -301,7 +318,11 @@ class TaskViewSet(viewsets.ModelViewSet):
             task.status = TaskStatus(updated_status).value
             task.remarks = updated_remarks
             task.save()
-            task.add_status_update(status=updated_status, remarks=updated_remarks)
+            task.add_status_update(
+                new_status=updated_status,
+                remarks=updated_remarks,
+                changed_by=request.user,
+            )
             serializer = TaskListSerializer(task)
             return Response(
                 data=serializer.data,
@@ -312,6 +333,141 @@ class TaskViewSet(viewsets.ModelViewSet):
                 data={"message": f"Something went wrong. {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(detail=True, methods=["POST"], url_path="initiate-approval")
+    def initiate_approval(self, request, pk=None):
+        """Initiate approval workflow for a task"""
+        task = self.get_object()
+
+        # Check if user has permission to initiate approval
+        if not request.user.is_admin and task.assigned_to != request.user:
+            return Response(
+                {
+                    "error": "You don't have permission to initiate approval for this task."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if task is already in approval workflow
+        if task.requires_approval:
+            return Response(
+                {"error": "This task is already in approval workflow."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate request data
+        serializer = InitiateApprovalSerializer(data=request.data)
+        if serializer.is_valid():
+            approver_ids = serializer.validated_data["approvers"]
+            approvers = User.objects.filter(id__in=approver_ids, role="admin")
+
+            try:
+                initiate_task_approval(task, list(approvers), request.user)
+                return Response(
+                    {"message": "Approval workflow initiated successfully."},
+                    status=status.HTTP_200_OK,
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to initiate approval workflow: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["POST"], url_path="process-approval")
+    def process_approval(self, request, pk=None):
+        """Process an approval decision for a task"""
+        task = self.get_object()
+
+        # Check if user is an admin
+        if not request.user.is_admin:
+            return Response(
+                {"error": "Only admin users can process approvals."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if task is in approval workflow
+        if not task.requires_approval:
+            return Response(
+                {"error": "This task is not in approval workflow."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if user is the current approver
+        current_approval = TaskApproval.objects.filter(
+            task=task,
+            approver=request.user,
+            step_number=task.current_approval_step,
+            action="pending",
+        ).first()
+
+        if not current_approval:
+            return Response(
+                {"error": "You are not the current approver for this task."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Validate request data
+        serializer = ProcessApprovalSerializer(data=request.data)
+        if serializer.is_valid():
+            action = serializer.validated_data["action"]
+            comments = serializer.validated_data.get("comments", "")
+            next_approver = serializer.validated_data.get("next_approver")
+
+            try:
+                process_task_approval(
+                    task, request.user, action, comments, next_approver
+                )
+                return Response(
+                    {"message": f"Task {action} successfully."},
+                    status=status.HTTP_200_OK,
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Failed to process approval: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["GET"], url_path="approval-history")
+    def approval_history(self, request, pk=None):
+        """Get approval history for a task"""
+        task = self.get_object()
+
+        approvals = TaskApproval.objects.filter(task=task).order_by("step_number")
+        status_history = TaskStatusHistory.objects.filter(task=task).order_by(
+            "-created_at"
+        )
+
+        return Response(
+            {
+                "approvals": TaskApprovalSerializer(approvals, many=True).data,
+                "status_history": TaskStatusHistorySerializer(
+                    status_history, many=True
+                ).data,
+            }
+        )
+
+    @action(detail=False, methods=["GET"], url_path="pending-approvals")
+    def pending_approvals(self, request):
+        """Get tasks pending current user's approval"""
+        if not request.user.is_admin:
+            return Response(
+                {"error": "Only admin users can view pending approvals."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        pending_approvals = TaskApproval.objects.filter(
+            approver=request.user, action="pending"
+        ).select_related("task", "task__client", "task__assigned_to")
+
+        tasks = [approval.task for approval in pending_approvals]
+
+        return Response(
+            TaskListSerializer(tasks, many=True).data, status=status.HTTP_200_OK
+        )
 
 
 class ClientViewSet(viewsets.ModelViewSet):

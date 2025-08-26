@@ -4,7 +4,15 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from core.choices import TaskStatus
-from core.models import AppLog, Client, Notification, Task, User
+from core.models import (
+    AppLog,
+    Client,
+    Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
+    User,
+)
 from core.utils import get_today_local
 
 # =======================
@@ -134,6 +142,11 @@ class TaskSerializer(serializers.ModelSerializer):
     client_detail = ClientMiniSerializer(source="client", read_only=True)
     category_specific_fields = serializers.ReadOnlyField()
 
+    # Approval-related read-only fields
+    pending_approver = UserMiniSerializer(read_only=True)
+    approval_history = serializers.ReadOnlyField()
+    status_history_display = serializers.ReadOnlyField()
+
     class Meta:
         model = Task
         fields = [
@@ -166,6 +179,12 @@ class TaskSerializer(serializers.ModelSerializer):
             "tax_payable",
             "last_followup",
             "category_specific_fields",
+            # Approval-related fields
+            "current_approval_step",
+            "requires_approval",
+            "pending_approver",
+            "approval_history",
+            "status_history_display",
         ]
         read_only_fields = ["id", "last_update"]
 
@@ -245,19 +264,8 @@ class TaskListSerializer(serializers.ModelSerializer):
         return None
 
     def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
+        """Get formatted status history from the new system"""
+        return obj.status_history_display
 
 
 class ClientBirthdaySerializer(serializers.ModelSerializer):
@@ -291,3 +299,125 @@ class AppLogSerializer(serializers.ModelSerializer):
         model = AppLog
         fields = "__all__"
         read_only_fields = ["created_at"]
+
+
+class TaskStatusHistorySerializer(serializers.ModelSerializer):
+    """Serializer for TaskStatusHistory model"""
+
+    changed_by = UserMiniSerializer(read_only=True)
+    old_status_display = serializers.CharField(
+        source="get_old_status_display", read_only=True
+    )
+    new_status_display = serializers.CharField(
+        source="get_new_status_display", read_only=True
+    )
+    change_type_display = serializers.CharField(
+        source="get_change_type_display", read_only=True
+    )
+    formatted_date = serializers.ReadOnlyField()
+
+    class Meta:
+        model = TaskStatusHistory
+        fields = [
+            "id",
+            "task",
+            "old_status",
+            "old_status_display",
+            "new_status",
+            "new_status_display",
+            "changed_by",
+            "remarks",
+            "change_type",
+            "change_type_display",
+            "related_approval",
+            "created_at",
+            "formatted_date",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TaskApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for TaskApproval model"""
+
+    approver = UserMiniSerializer(read_only=True)
+    next_approver = UserMiniSerializer(read_only=True)
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+    created_at = serializers.DateTimeField(
+        format="%b %d, %Y at %I:%M %p", read_only=True
+    )
+    updated_at = serializers.DateTimeField(
+        format="%b %d, %Y at %I:%M %p", read_only=True
+    )
+
+    class Meta:
+        model = TaskApproval
+        fields = [
+            "id",
+            "task",
+            "approver",
+            "action",
+            "action_display",
+            "comments",
+            "step_number",
+            "next_approver",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class InitiateApprovalSerializer(serializers.Serializer):
+    """Serializer for initiating task approval workflow"""
+
+    approvers = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of user IDs who will approve this task in sequence",
+    )
+
+    def validate_approvers(self, value):
+        """Validate that all approver IDs are valid admin users"""
+        from core.models import User
+
+        # Check that all user IDs exist and are admins
+        users = User.objects.filter(id__in=value, role="admin")
+        if len(users) != len(value):
+            raise serializers.ValidationError(
+                "All approvers must be valid admin users."
+            )
+        return value
+
+
+class ProcessApprovalSerializer(serializers.Serializer):
+    """Serializer for processing approval decisions"""
+
+    ACTION_CHOICES = [
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    action = serializers.ChoiceField(
+        choices=ACTION_CHOICES, help_text="The approval decision"
+    )
+    comments = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional comments about the approval decision",
+    )
+    next_approver = serializers.IntegerField(
+        required=False, help_text="User ID of next approver (optional, for forwarding)"
+    )
+
+    def validate_next_approver(self, value):
+        """Validate that next_approver is a valid admin user"""
+        if value is not None:
+            from core.models import User
+
+            try:
+                user = User.objects.get(id=value, role="admin")
+                return user
+            except User.DoesNotExist:
+                raise serializers.ValidationError(
+                    "Next approver must be a valid admin user."
+                )
+        return None

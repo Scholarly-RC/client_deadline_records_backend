@@ -80,6 +80,98 @@ class Client(models.Model):
         return self.status == "active"
 
 
+class TaskStatusHistory(models.Model):
+    task = models.ForeignKey(
+        "Task", on_delete=models.CASCADE, related_name="status_history_records"
+    )
+    old_status = models.CharField(
+        max_length=20, choices=TaskStatus.choices, null=True, blank=True
+    )
+    new_status = models.CharField(max_length=20, choices=TaskStatus.choices)
+    changed_by = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="status_changes_made"
+    )
+    remarks = models.TextField(blank=True, null=True)
+
+    # Additional context fields
+    change_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("manual", "Manual Update"),
+            ("approval", "Approval Process"),
+            ("system", "System Update"),
+        ],
+        default="manual",
+    )
+
+    # For approval-related status changes
+    related_approval = models.ForeignKey(
+        "TaskApproval",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="status_changes",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Task Status History"
+        verbose_name_plural = "Task Status Histories"
+        indexes = [
+            models.Index(fields=["task", "-created_at"]),
+            models.Index(fields=["changed_by", "-created_at"]),
+        ]
+
+    def __str__(self):
+        old_status_display = self.get_old_status_display() if self.old_status else "New"
+        return f"{self.task.description[:30]} | {old_status_display} → {self.get_new_status_display()} by {self.changed_by.fullname}"
+
+    @property
+    def formatted_date(self):
+        return self.created_at.strftime("%b %d, %Y at %I:%M %p")
+
+
+class TaskApproval(models.Model):
+    APPROVAL_ACTIONS = [
+        ("approved", "Approved"),
+        ("rejected", "Rejected/For Revision"),
+        ("pending", "Pending Review"),
+    ]
+
+    task = models.ForeignKey("Task", on_delete=models.CASCADE, related_name="approvals")
+    approver = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="task_approvals_given"
+    )
+    action = models.CharField(
+        max_length=10, choices=APPROVAL_ACTIONS, default="pending"
+    )
+    comments = models.TextField(blank=True, null=True)
+    step_number = models.PositiveIntegerField(default=1)
+    next_approver = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pending_approvals",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ["task", "approver", "step_number"]
+        indexes = [
+            models.Index(fields=["task", "step_number"]),
+            models.Index(fields=["approver", "action"]),
+        ]
+
+    def __str__(self):
+        return f"Step {self.step_number}: {self.approver.fullname} - {self.get_action_display()} for {self.task}"
+
+
 class Task(models.Model):
     # Common fields
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
@@ -99,7 +191,10 @@ class Task(models.Model):
     date_complied = models.DateField(blank=True, null=True)
     completion_date = models.DateField(blank=True, null=True)
     last_update = models.DateTimeField(blank=True, null=True)
-    status_history = models.JSONField(default=list, blank=True)
+
+    # New approval-related fields
+    current_approval_step = models.PositiveIntegerField(default=0)
+    requires_approval = models.BooleanField(default=False)
 
     # Fields that apply to most categories
     period_covered = models.CharField(max_length=255, blank=True, null=True)
@@ -159,13 +254,80 @@ class Task(models.Model):
         )
         return f"[{self.get_category_display()}] {self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
 
-    def add_status_update(self, status, remarks):
+    def add_status_update(
+        self,
+        new_status,
+        remarks=None,
+        changed_by=None,
+        change_type="manual",
+        related_approval=None,
+    ):
+        """Add a status change record to the history"""
+        old_status = self.status
+        self.status = new_status
         self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
+
+        # Create status history record
+        TaskStatusHistory.objects.create(
+            task=self,
+            old_status=old_status,
+            new_status=new_status,
+            changed_by=changed_by,
+            remarks=remarks,
+            change_type=change_type,
+            related_approval=related_approval,
         )
-        self.save(update_fields=["status_history", "last_update"])
+
+        self.save(update_fields=["status", "last_update"])
+
+    @property
+    def status_history_display(self):
+        """Get formatted status history for display"""
+        history = []
+        for record in self.status_history_records.all()[:10]:  # Latest 10 records
+            history.append(
+                {
+                    "old_status": (
+                        record.get_old_status_display() if record.old_status else "New"
+                    ),
+                    "new_status": record.get_new_status_display(),
+                    "changed_by": (
+                        record.changed_by.fullname if record.changed_by else "System"
+                    ),
+                    "remarks": record.remarks,
+                    "date": record.formatted_date,
+                    "change_type": record.get_change_type_display(),
+                }
+            )
+        return history
+
+    @property
+    def pending_approver(self):
+        """Get the current pending approver for this task"""
+        if self.status == TaskStatus.FOR_CHECKING and self.requires_approval:
+            pending_approval = (
+                self.approvals.filter(action="pending").order_by("step_number").first()
+            )
+            return pending_approval.approver if pending_approval else None
+        return None
+
+    @property
+    def approval_history(self):
+        """Get formatted approval history for display"""
+        history = []
+        for approval in self.approvals.exclude(action="pending").order_by(
+            "step_number"
+        ):
+            history.append(
+                {
+                    "step": approval.step_number,
+                    "approver": approval.approver.fullname,
+                    "action": approval.get_action_display(),
+                    "comments": approval.comments,
+                    "date": approval.updated_at.strftime("%b %d, %Y at %I:%M %p"),
+                }
+            )
+        return history
 
     def clean(self):
         """Validate category-specific required fields"""
