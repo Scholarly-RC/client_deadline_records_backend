@@ -38,7 +38,10 @@ class User(AbstractUser):
 
     @property
     def fullname(self):
-        return f"{self.first_name} {self.middle_name} {self.last_name}".title()
+        """Return formatted full name without extra spaces for empty middle name"""
+        name_parts = [self.first_name, self.middle_name, self.last_name]
+        # Filter out empty parts and join with spaces
+        return " ".join(part for part in name_parts if part.strip()).title()
 
     @property
     def is_admin(self):
@@ -261,24 +264,57 @@ class Task(models.Model):
         changed_by=None,
         change_type="manual",
         related_approval=None,
+        force_history=False,
     ):
-        """Add a status change record to the history"""
+        """Add a status change record to the history
+
+        Args:
+            new_status: The new status to set
+            remarks: Optional remarks for the change
+            changed_by: User who made the change
+            change_type: Type of change (manual, approval, system)
+            related_approval: TaskApproval instance if this is approval-related
+            force_history: If True, creates status history even if status doesn't change
+                          (useful for approval workflows where multiple approvers
+                          handle the same status)
+        """
         old_status = self.status
-        self.status = new_status
-        self.last_update = get_now_local()
 
-        # Create status history record
-        TaskStatusHistory.objects.create(
-            task=self,
-            old_status=old_status,
-            new_status=new_status,
-            changed_by=changed_by,
-            remarks=remarks,
-            change_type=change_type,
-            related_approval=related_approval,
-        )
+        # Create status history entry if status changed OR if forced (for approval workflows)
+        if old_status != new_status or force_history:
+            # Only update status if it actually changed
+            if old_status != new_status:
+                self.status = new_status
+                self.last_update = get_now_local()
+                update_fields = ["status", "last_update"]
+            else:
+                # Status didn't change but we're forcing history creation
+                self.last_update = get_now_local()
+                update_fields = ["last_update"]
 
-        self.save(update_fields=["status", "last_update"])
+            # Create status history record
+            TaskStatusHistory.objects.create(
+                task=self,
+                old_status=old_status,
+                new_status=new_status,
+                changed_by=changed_by,
+                remarks=remarks,
+                change_type=change_type,
+                related_approval=related_approval,
+            )
+
+            # Always update task remarks to the latest remark if provided
+            if remarks and remarks.strip():
+                self.remarks = remarks
+                update_fields.append("remarks")
+
+            self.save(update_fields=update_fields)
+        else:
+            # If status didn't change and no force_history, still update remarks if provided
+            if remarks and remarks.strip():
+                self.remarks = remarks
+                self.last_update = get_now_local()
+                self.save(update_fields=["remarks", "last_update"])
 
     @property
     def status_history_display(self):
@@ -310,6 +346,21 @@ class Task(models.Model):
             )
             return pending_approval.approver if pending_approval else None
         return None
+
+    @property
+    def latest_remark(self):
+        """Get the latest remark from status history
+
+        Returns the most recent remark from status history,
+        regardless of whether it's user-generated or system-generated.
+        """
+        latest_history = (
+            self.status_history_records.exclude(remarks__isnull=True)
+            .exclude(remarks__exact="")
+            .order_by("-created_at")
+            .first()
+        )
+        return latest_history.remarks if latest_history else self.remarks
 
     @property
     def approval_history(self):

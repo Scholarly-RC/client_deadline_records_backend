@@ -225,9 +225,7 @@ class TaskListSerializer(serializers.ModelSerializer):
     )
     engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
     deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
+    completion_date = serializers.DateField(format="%b %d, %Y", read_only=True)
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
     status_history = serializers.SerializerMethodField()
@@ -235,6 +233,13 @@ class TaskListSerializer(serializers.ModelSerializer):
         source="get_category_display", read_only=True
     )
     category_specific_fields = serializers.ReadOnlyField()
+
+    # Approver details
+    pending_approver = UserMiniSerializer(read_only=True)
+    approval_history = serializers.ReadOnlyField()
+    current_approval_step = serializers.IntegerField(read_only=True)
+    requires_approval = serializers.BooleanField(read_only=True)
+    all_approvers = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -256,6 +261,12 @@ class TaskListSerializer(serializers.ModelSerializer):
             "remarks",
             "status_history",
             "category_specific_fields",
+            # Approval-related fields
+            "pending_approver",
+            "approval_history",
+            "current_approval_step",
+            "requires_approval",
+            "all_approvers",
         ]
 
     def get_deadline_days_remaining(self, obj):
@@ -266,6 +277,38 @@ class TaskListSerializer(serializers.ModelSerializer):
     def get_status_history(self, obj):
         """Get formatted status history from the new system"""
         return obj.status_history_display
+
+    def get_all_approvers(self, obj):
+        """Get all approvers in the approval workflow (both pending and completed)"""
+        if not obj.requires_approval:
+            return []
+
+        approvers = []
+        for approval in obj.approvals.all().order_by("step_number"):
+            approver_data = {
+                "step": approval.step_number,
+                "approver": UserMiniSerializer(approval.approver).data,
+                "action": approval.action,
+                "action_display": approval.get_action_display(),
+                "comments": approval.comments,
+                "is_current": (
+                    approval.step_number == obj.current_approval_step
+                    and approval.action == "pending"
+                ),
+                "created_at": (
+                    approval.created_at.strftime("%b %d, %Y at %I:%M %p")
+                    if approval.created_at
+                    else None
+                ),
+                "updated_at": (
+                    approval.updated_at.strftime("%b %d, %Y at %I:%M %p")
+                    if approval.updated_at
+                    else None
+                ),
+            }
+            approvers.append(approver_data)
+
+        return approvers
 
 
 class ClientBirthdaySerializer(serializers.ModelSerializer):

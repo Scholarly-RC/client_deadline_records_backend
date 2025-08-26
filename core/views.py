@@ -139,8 +139,17 @@ class TaskViewSet(viewsets.ModelViewSet):
     searching, and ordering capabilities.
     """
 
-    queryset = Task.objects.select_related("assigned_to", "client").all()
+    queryset = (
+        Task.objects.select_related("assigned_to", "client")
+        .prefetch_related(
+            "approvals__approver",
+            "approvals__next_approver",
+            "status_history_records__changed_by",
+        )
+        .all()
+    )
     serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
@@ -191,7 +200,19 @@ class TaskViewSet(viewsets.ModelViewSet):
         Filter queryset based on user permissions.
         Admin users see all records, non-admin users only see records assigned to them.
         """
-        queryset = Task.objects.select_related("assigned_to", "client").all()
+        queryset = (
+            Task.objects.select_related("assigned_to", "client")
+            .prefetch_related(
+                "approvals__approver",
+                "approvals__next_approver",
+                "status_history_records__changed_by",
+            )
+            .all()
+        )
+
+        # Return empty queryset for unauthenticated users
+        if not self.request.user.is_authenticated:
+            return queryset.none()
 
         if self.request.user.is_admin:
             return queryset
@@ -315,14 +336,19 @@ class TaskViewSet(viewsets.ModelViewSet):
         try:
             updated_status = request.data.get("status")
             updated_remarks = request.data.get("remarks")
-            task.status = TaskStatus(updated_status).value
-            task.remarks = updated_remarks
-            task.save()
+
+            # Update task fields
+            if updated_remarks:
+                task.remarks = updated_remarks
+
+            # Use add_status_update to handle both status and remarks updates
+            # The method now has built-in logic to prevent unnecessary status history entries
             task.add_status_update(
                 new_status=updated_status,
                 remarks=updated_remarks,
                 changed_by=request.user,
             )
+
             serializer = TaskListSerializer(task)
             return Response(
                 data=serializer.data,
@@ -465,8 +491,21 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         tasks = [approval.task for approval in pending_approvals]
 
+        # Optimize queries for the TaskListSerializer
+        task_ids = [task.id for task in tasks]
+        optimized_tasks = (
+            Task.objects.filter(id__in=task_ids)
+            .select_related("assigned_to", "client")
+            .prefetch_related(
+                "approvals__approver",
+                "approvals__next_approver",
+                "status_history_records__changed_by",
+            )
+        )
+
         return Response(
-            TaskListSerializer(tasks, many=True).data, status=status.HTTP_200_OK
+            TaskListSerializer(optimized_tasks, many=True).data,
+            status=status.HTTP_200_OK,
         )
 
 

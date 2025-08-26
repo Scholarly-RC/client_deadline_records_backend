@@ -134,6 +134,10 @@ def initiate_task_approval(task, approvers_list, initiated_by):
     """
     from core.choices import TaskStatus
 
+    # Clear any existing approval records for this task to prevent UNIQUE constraint violations
+    # This allows re-initialization of approval workflows
+    TaskApproval.objects.filter(task=task).delete()
+
     # Mark task as requiring approval and update status
     task.requires_approval = True
     task.current_approval_step = 1
@@ -266,6 +270,7 @@ def process_task_approval(task, approver, action, comments=None, next_approver=N
                 changed_by=approver,
                 change_type="approval",
                 related_approval=current_approval,
+                force_history=True,  # Force history creation for intermediate approvals
             )
 
             # Notify next approver
