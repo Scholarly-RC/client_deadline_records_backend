@@ -1,6 +1,16 @@
 from django.db import models
 
 
+class TaskCategory(models.TextChoices):
+    COMPLIANCE = "compliance", "Compliance"
+    FINANCIAL_STATEMENT = "financial_statement", "Financial Statement Preparation"
+    ACCOUNTING_AUDIT = "accounting_audit", "Accounting Audit"
+    FINANCE_IMPLEMENTATION = "finance_implementation", "Finance Implementation"
+    HR_IMPLEMENTATION = "hr_implementation", "Human Resource Implementation"
+    MISCELLANEOUS = "miscellaneous", "Miscellaneous Tasks"
+    TAX_CASE = "tax_case", "Tax Case"
+
+
 class TaskStatus(models.TextChoices):
     COMPLETED = "completed", "Completed"
     FOR_REVISION = "for_revision", "For Revision"

@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from core.choices import (
     BirForms,
     ClientStatus,
+    TaskCategory,
     TaskPriority,
     TaskStatus,
     TaxCaseCategory,
@@ -19,7 +20,6 @@ from core.utils import get_now_local, get_today_local
 
 
 class User(AbstractUser):
-
     middle_name = models.CharField(_("Middle Name"), max_length=150, blank=True)
     role = models.CharField(
         max_length=5,
@@ -80,289 +80,84 @@ class Client(models.Model):
         return self.status == "active"
 
 
-class Compliance(models.Model):
+class Task(models.Model):
+    # Common fields
     client = models.ForeignKey(Client, on_delete=models.RESTRICT)
+    category = models.CharField(max_length=25, choices=TaskCategory.choices)
     description = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
+    )
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.RESTRICT, related_name="tasks_assigned_to"
+    )
+    priority = models.CharField(
+        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
+    )
+    deadline = models.DateField()
+    remarks = models.TextField(blank=True, null=True)
+    date_complied = models.DateField(blank=True, null=True)
+    completion_date = models.DateField(blank=True, null=True)
+    last_update = models.DateTimeField(blank=True, null=True)
+    status_history = models.JSONField(default=list, blank=True)
+
+    # Fields that apply to most categories
+    period_covered = models.CharField(max_length=255, blank=True, null=True)
+    engagement_date = models.DateField(blank=True, null=True)
+
+    # Category-specific fields
+    # Compliance specific
     steps = models.CharField(max_length=255, blank=True, null=True)
     requirements = models.CharField(max_length=255, blank=True, null=True)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    period_covered = models.CharField(max_length=255)
-    assigned_to = models.ForeignKey(
-        User, on_delete=models.RESTRICT, related_name="compliances_assigned_to"
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
 
-    status_history = models.JSONField(default=list, blank=True)
+    # Financial Statement specific
+    type = models.CharField(max_length=255, blank=True, null=True)
+    needed_data = models.CharField(max_length=255, blank=True, null=True)
 
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
+    # Miscellaneous Tasks specific
+    area = models.CharField(max_length=255, blank=True, null=True)
 
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class FinancialStatementPreparation(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    type = models.CharField(max_length=255)
-    needed_data = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    assigned_to = models.ForeignKey(
-        User,
-        on_delete=models.RESTRICT,
-        related_name="financial_statement_preparations_assigned_to",
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
-
-    status_history = models.JSONField(default=list, blank=True)
-
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return (
-            f"{self.type[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
-        )
-
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class AccountingAudit(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    description = models.CharField(max_length=255)
-    period_covered = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    assigned_to = models.ForeignKey(
-        User, on_delete=models.RESTRICT, related_name="accounting_audits_assigned_to"
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
-
-    status_history = models.JSONField(default=list, blank=True)
-
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
-
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class FinanceImplementation(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    description = models.CharField(max_length=255)
-    period_covered = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    assigned_to = models.ForeignKey(
-        User,
-        on_delete=models.RESTRICT,
-        related_name="finance_implementations_assigned_to",
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
-
-    status_history = models.JSONField(default=list, blank=True)
-
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
-
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class HumanResourceImplementation(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    description = models.CharField(max_length=255)
-    period_covered = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    assigned_to = models.ForeignKey(
-        User,
-        on_delete=models.RESTRICT,
-        related_name="human_resource_implementations_assigned_to",
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
-
-    status_history = models.JSONField(default=list, blank=True)
-
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
-
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class MiscellaneousTasks(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    area = models.CharField(max_length=255)
-    description = models.CharField(max_length=255)
-    period_covered = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    assigned_to = models.ForeignKey(
-        User, on_delete=models.RESTRICT, related_name="miscellaneous_tasks_assigned_to"
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
-
-    status_history = models.JSONField(default=list, blank=True)
-
-    def __str__(self):
-        deadline_str = (
-            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
-        )
-        return f"{self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
-
-    def add_status_update(self, status, remarks):
-        self.last_update = get_now_local()
-        self.status_history.insert(
-            0,
-            {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
-        )
-        self.save(update_fields=["status_history", "last_update"])
-
-
-class TaxCase(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.RESTRICT)
-    category = models.CharField(
+    # Tax Case specific
+    tax_category = models.CharField(
         max_length=3,
         choices=TaxCaseCategory.choices,
-        default=None,
         blank=True,
         null=True,
     )
-    type = models.CharField(
+    tax_type = models.CharField(
         max_length=2,
         choices=TypeOfTaxCase.choices,
-        default=None,
         blank=True,
         null=True,
     )
     form = models.CharField(
         max_length=6,
         choices=BirForms.choices,
-        default=None,
         blank=True,
         null=True,
     )
-    period_covered = models.CharField(max_length=255)
-    working_paper = models.CharField(max_length=255)
+    working_paper = models.CharField(max_length=255, blank=True, null=True)
     tax_payable = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        default=0.00,
+        blank=True,
+        null=True,
     )
     last_followup = models.DateField(blank=True, null=True)
-    assigned_to = models.ForeignKey(
-        User, on_delete=models.RESTRICT, related_name="tax_cases_assigned_to"
-    )
-    status = models.CharField(
-        max_length=20, choices=TaskStatus.choices, default=TaskStatus.NOT_YET_STARTED
-    )
-    priority = models.CharField(
-        max_length=6, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
-    )
-    engagement_date = models.DateField()
-    deadline = models.DateField()
-    remarks = models.TextField(blank=True, null=True)
-    date_complied = models.DateField(blank=True, null=True)
-    completion_date = models.DateField(blank=True, null=True)
-    last_update = models.DateTimeField(blank=True, null=True)
 
-    status_history = models.JSONField(default=list, blank=True)
+    class Meta:
+        db_table = "tasks"
+        indexes = [
+            models.Index(fields=["category", "status"]),
+            models.Index(fields=["assigned_to", "deadline"]),
+            models.Index(fields=["client", "category"]),
+        ]
 
     def __str__(self):
-        return f"{self.category} - {self.type} for {self.client.name} ({self.status})"
+        deadline_str = (
+            self.deadline.strftime("%b %d, %Y") if self.deadline else "No deadline"
+        )
+        return f"[{self.get_category_display()}] {self.description[:30]} - {self.assigned_to} ({self.status}, due {deadline_str})"
 
     def add_status_update(self, status, remarks):
         self.last_update = get_now_local()
@@ -371,6 +166,123 @@ class TaxCase(models.Model):
             {"status": status, "remarks": remarks, "date": get_now_local().isoformat()},
         )
         self.save(update_fields=["status_history", "last_update"])
+
+    def clean(self):
+        """Validate category-specific required fields"""
+        from django.core.exceptions import ValidationError
+
+        if self.category == TaskCategory.COMPLIANCE:
+            if not self.period_covered:
+                raise ValidationError(
+                    {
+                        "period_covered": "Period covered is required for compliance tasks."
+                    }
+                )
+            if not self.engagement_date:
+                raise ValidationError(
+                    {
+                        "engagement_date": "Engagement date is required for compliance tasks."
+                    }
+                )
+
+        elif self.category == TaskCategory.FINANCIAL_STATEMENT:
+            if not self.type:
+                raise ValidationError(
+                    {"type": "Type is required for financial statement tasks."}
+                )
+            if not self.needed_data:
+                raise ValidationError(
+                    {
+                        "needed_data": "Needed data is required for financial statement tasks."
+                    }
+                )
+
+        elif self.category == TaskCategory.TAX_CASE:
+            if not self.period_covered:
+                raise ValidationError(
+                    {"period_covered": "Period covered is required for tax cases."}
+                )
+            if not self.working_paper:
+                raise ValidationError(
+                    {"working_paper": "Working paper is required for tax cases."}
+                )
+            if not self.engagement_date:
+                raise ValidationError(
+                    {"engagement_date": "Engagement date is required for tax cases."}
+                )
+
+        elif self.category == TaskCategory.MISCELLANEOUS:
+            if not self.area:
+                raise ValidationError(
+                    {"area": "Area is required for miscellaneous tasks."}
+                )
+            if not self.period_covered:
+                raise ValidationError(
+                    {
+                        "period_covered": "Period covered is required for miscellaneous tasks."
+                    }
+                )
+            if not self.engagement_date:
+                raise ValidationError(
+                    {
+                        "engagement_date": "Engagement date is required for miscellaneous tasks."
+                    }
+                )
+
+        elif self.category in [
+            TaskCategory.ACCOUNTING_AUDIT,
+            TaskCategory.FINANCE_IMPLEMENTATION,
+            TaskCategory.HR_IMPLEMENTATION,
+        ]:
+            if not self.period_covered:
+                raise ValidationError(
+                    {
+                        "period_covered": "Period covered is required for this task category."
+                    }
+                )
+            if not self.engagement_date:
+                raise ValidationError(
+                    {
+                        "engagement_date": "Engagement date is required for this task category."
+                    }
+                )
+
+    @property
+    def category_specific_fields(self):
+        """Return a dictionary of non-empty category-specific fields"""
+        fields = {}
+
+        if self.category == TaskCategory.COMPLIANCE:
+            if self.steps:
+                fields["Steps"] = self.steps
+            if self.requirements:
+                fields["Requirements"] = self.requirements
+
+        elif self.category == TaskCategory.FINANCIAL_STATEMENT:
+            if self.type:
+                fields["Type"] = self.type
+            if self.needed_data:
+                fields["Needed Data"] = self.needed_data
+
+        elif self.category == TaskCategory.MISCELLANEOUS:
+            if self.area:
+                fields["Area"] = self.area
+
+        elif self.category == TaskCategory.TAX_CASE:
+            if self.tax_category:
+                fields["Tax Category"] = self.get_tax_category_display()
+            if self.tax_type:
+                fields["Tax Type"] = self.get_tax_type_display()
+            if self.form:
+                fields["Form"] = self.get_form_display()
+            if self.working_paper:
+                fields["Working Paper"] = self.working_paper
+            if self.tax_payable:
+                fields["Tax Payable"] = f"₱{self.tax_payable:,.2f}"
+            if self.last_followup:
+                fields["Last Followup"] = self.last_followup.strftime("%b %d, %Y")
+
+        return fields
 
 
 class Notification(models.Model):

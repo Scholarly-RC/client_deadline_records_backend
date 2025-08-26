@@ -1,22 +1,11 @@
 from datetime import datetime
+
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from core.models import (
-    AccountingAudit,
-    AppLog,
-    Client,
-    Compliance,
-    FinanceImplementation,
-    FinancialStatementPreparation,
-    HumanResourceImplementation,
-    MiscellaneousTasks,
-    Notification,
-    TaxCase,
-    User,
-)
-from core.utils import get_today_local
 from core.choices import TaskStatus
+from core.models import AppLog, Client, Notification, Task, User
+from core.utils import get_today_local
 
 # =======================
 # Mini Serializers
@@ -138,559 +127,45 @@ class ClientSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
-class AccountingAuditSerializer(serializers.ModelSerializer):
-    """Serializer for AccountingAudit model"""
+class TaskSerializer(serializers.ModelSerializer):
+    """Serializer for Task model"""
 
     assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
     client_detail = ClientMiniSerializer(source="client", read_only=True)
+    category_specific_fields = serializers.ReadOnlyField()
 
     class Meta:
-        model = AccountingAudit
+        model = Task
         fields = [
             "id",
             "client",
             "client_detail",
+            "category",
             "description",
             "status",
-            "period_covered",
             "assigned_to",
             "assigned_to_detail",
             "priority",
-            "engagement_date",
             "deadline",
             "remarks",
             "date_complied",
             "completion_date",
             "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-    def validate(self, data):
-        """Custom validation for date fields"""
-        engagement_date = data.get("engagement_date")
-        deadline = data.get("deadline")
-        completion_date = data.get("completion_date")
-        date_complied = data.get("date_complied")
-
-        # Validate that deadline is after engagement date
-        if engagement_date and deadline and deadline < engagement_date:
-            raise serializers.ValidationError(
-                "Deadline cannot be earlier than engagement date."
-            )
-
-        # Validate that completion date is not before engagement date
-        if engagement_date and completion_date and completion_date < engagement_date:
-            raise serializers.ValidationError(
-                "Completion date cannot be earlier than engagement date."
-            )
-
-        # Validate that date complied is not before engagement date
-        if engagement_date and date_complied and date_complied < engagement_date:
-            raise serializers.ValidationError(
-                "Date complied cannot be earlier than engagement date."
-            )
-
-        return data
-
-
-class AccountingAuditListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
-
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = AccountingAudit
-        fields = [
-            "id",
-            "client_name",
-            "description",
-            "status",
-            "assigned_to",
-            "assigned_to_name",
-            "priority",
+            "period_covered",
             "engagement_date",
-            "deadline",
-            "completion_date",
-            "last_update",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
-
-
-class ComplianceSerializer(serializers.ModelSerializer):
-    """Serializer for Compliance model"""
-
-    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-
-    class Meta:
-        model = Compliance
-        fields = [
-            "id",
-            "client",
-            "client_detail",
-            "description",
+            # Category-specific fields
             "steps",
             "requirements",
-            "status",
-            "period_covered",
-            "assigned_to",
-            "assigned_to_detail",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-    def validate(self, data):
-        """Custom validation for date fields"""
-        engagement_date = data.get("engagement_date")
-        deadline = data.get("deadline")
-        completion_date = data.get("completion_date")
-        date_complied = data.get("date_complied")
-
-        # Validate that deadline is after engagement date
-        if engagement_date and deadline and deadline < engagement_date:
-            raise serializers.ValidationError(
-                "Deadline cannot be earlier than engagement date."
-            )
-
-        # Validate that completion date is not before engagement date
-        if engagement_date and completion_date and completion_date < engagement_date:
-            raise serializers.ValidationError(
-                "Completion date cannot be earlier than engagement date."
-            )
-
-        # Validate that date complied is not before engagement date
-        if engagement_date and date_complied and date_complied < engagement_date:
-            raise serializers.ValidationError(
-                "Date complied cannot be earlier than engagement date."
-            )
-
-        return data
-
-
-class ComplianceListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
-
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Compliance
-        fields = [
-            "id",
-            "client_name",
-            "description",
-            "status",
-            "assigned_to",
-            "assigned_to_name",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "completion_date",
-            "last_update",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
-
-
-class FinancialStatementPreparationSerializer(serializers.ModelSerializer):
-    """Serializer for FinancialStatementPreparation model"""
-
-    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-
-    class Meta:
-        model = FinancialStatementPreparation
-        fields = [
-            "id",
-            "client",
-            "client_detail",
             "type",
             "needed_data",
-            "status",
-            "assigned_to",
-            "assigned_to_detail",
-            "priority",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-
-class FinancialStatementPreparationListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
-
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = FinancialStatementPreparation
-        fields = [
-            "id",
-            "client_name",
-            "type",
-            "needed_data",
-            "status",
-            "assigned_to",
-            "assigned_to_name",
-            "priority",
-            "deadline",
-            "completion_date",
-            "last_update",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
-
-
-class FinanceImplementationSerializer(serializers.ModelSerializer):
-    """Serializer for FinanceImplementation model"""
-
-    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-
-    class Meta:
-        model = FinanceImplementation
-        fields = [
-            "id",
-            "client",
-            "client_detail",
-            "description",
-            "status",
-            "period_covered",
-            "assigned_to",
-            "assigned_to_detail",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-    def validate(self, data):
-        """Custom validation for date fields"""
-        engagement_date = data.get("engagement_date")
-        deadline = data.get("deadline")
-        completion_date = data.get("completion_date")
-        date_complied = data.get("date_complied")
-
-        # Validate that deadline is after engagement date
-        if engagement_date and deadline and deadline < engagement_date:
-            raise serializers.ValidationError(
-                "Deadline cannot be earlier than engagement date."
-            )
-
-        # Validate that completion date is not before engagement date
-        if engagement_date and completion_date and completion_date < engagement_date:
-            raise serializers.ValidationError(
-                "Completion date cannot be earlier than engagement date."
-            )
-
-        # Validate that date complied is not before engagement date
-        if engagement_date and date_complied and date_complied < engagement_date:
-            raise serializers.ValidationError(
-                "Date complied cannot be earlier than engagement date."
-            )
-
-        return data
-
-
-class FinanceImplementationListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
-
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = FinanceImplementation
-        fields = [
-            "id",
-            "client_name",
-            "description",
-            "status",
-            "assigned_to",
-            "assigned_to_name",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "completion_date",
-            "last_update",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
-
-
-class HumanResourceImplementationSerializer(serializers.ModelSerializer):
-    """Serializer for HumanResourceImplementation model"""
-
-    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-
-    class Meta:
-        model = HumanResourceImplementation
-        fields = [
-            "id",
-            "client",
-            "client_detail",
-            "description",
-            "status",
-            "period_covered",
-            "assigned_to",
-            "assigned_to_detail",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-    def validate(self, data):
-        """Custom validation for date fields"""
-        engagement_date = data.get("engagement_date")
-        deadline = data.get("deadline")
-        completion_date = data.get("completion_date")
-        date_complied = data.get("date_complied")
-
-        # Validate that deadline is after engagement date
-        if engagement_date and deadline and deadline < engagement_date:
-            raise serializers.ValidationError(
-                "Deadline cannot be earlier than engagement date."
-            )
-
-        # Validate that completion date is not before engagement date
-        if engagement_date and completion_date and completion_date < engagement_date:
-            raise serializers.ValidationError(
-                "Completion date cannot be earlier than engagement date."
-            )
-
-        # Validate that date complied is not before engagement date
-        if engagement_date and date_complied and date_complied < engagement_date:
-            raise serializers.ValidationError(
-                "Date complied cannot be earlier than engagement date."
-            )
-
-        return data
-
-
-class HumanResourceImplementationListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
-
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = HumanResourceImplementation
-        fields = [
-            "id",
-            "client_name",
-            "description",
-            "status",
-            "assigned_to",
-            "assigned_to_name",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "completion_date",
-            "last_update",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
-
-
-class MiscellaneousTasksSerializer(serializers.ModelSerializer):
-    """Serializer for MiscellaneousTasks model"""
-
-    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-
-    class Meta:
-        model = MiscellaneousTasks
-        fields = [
-            "id",
-            "client",
-            "client_detail",
             "area",
-            "description",
-            "status",
-            "period_covered",
-            "assigned_to",
-            "assigned_to_detail",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
+            "tax_category",
+            "tax_type",
+            "form",
+            "working_paper",
+            "tax_payable",
+            "last_followup",
+            "category_specific_fields",
         ]
         read_only_fields = ["id", "last_update"]
 
@@ -701,7 +176,7 @@ class MiscellaneousTasksSerializer(serializers.ModelSerializer):
         completion_date = data.get("completion_date")
         date_complied = data.get("date_complied")
 
-        # Validate that deadline is after engagement date
+        # Validate that deadline is after engagement date if both are provided
         if engagement_date and deadline and deadline < engagement_date:
             raise serializers.ValidationError(
                 "Deadline cannot be earlier than engagement date."
@@ -722,8 +197,8 @@ class MiscellaneousTasksSerializer(serializers.ModelSerializer):
         return data
 
 
-class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
-    """Simplified serializer for list views"""
+class TaskListSerializer(serializers.ModelSerializer):
+    """Simplified serializer for Task list views"""
 
     client_name = serializers.CharField(source="client.name", read_only=True)
     assigned_to_name = serializers.CharField(
@@ -737,13 +212,18 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
     status_history = serializers.SerializerMethodField()
+    category_display = serializers.CharField(
+        source="get_category_display", read_only=True
+    )
+    category_specific_fields = serializers.ReadOnlyField()
 
     class Meta:
-        model = MiscellaneousTasks
+        model = Task
         fields = [
             "id",
             "client_name",
-            "area",
+            "category",
+            "category_display",
             "description",
             "status",
             "assigned_to",
@@ -756,6 +236,7 @@ class MiscellaneousTasksListSerializer(serializers.ModelSerializer):
             "deadline_days_remaining",
             "remarks",
             "status_history",
+            "category_specific_fields",
         ]
 
     def get_deadline_days_remaining(self, obj):
@@ -800,144 +281,6 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = "__all__"
         read_only_fields = ["created_at"]
-
-
-class TaxCaseSerializer(serializers.ModelSerializer):
-    client_detail = ClientMiniSerializer(source="client", read_only=True)
-    assigned_to_detail = UserMiniSerializer(source="assigned_to", read_only=True)
-
-    class Meta:
-        model = TaxCase
-        fields = [
-            "id",
-            "client",
-            "client_id",
-            "client_detail",
-            "category",
-            "type",
-            "form",
-            "period_covered",
-            "working_paper",
-            "tax_payable",
-            "last_followup",
-            "assigned_to",
-            "assigned_to_id",
-            "assigned_to_detail",
-            "status",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "remarks",
-            "date_complied",
-            "completion_date",
-            "last_update",
-        ]
-        read_only_fields = ["id", "last_update"]
-
-    def validate(self, data):
-        """Custom validation for date fields"""
-        engagement_date = data.get("engagement_date")
-        deadline = data.get("deadline")
-        completion_date = data.get("completion_date")
-        date_complied = data.get("date_complied")
-
-        # Validate that deadline is after engagement date
-        if engagement_date and deadline and deadline < engagement_date:
-            raise serializers.ValidationError(
-                "Deadline cannot be earlier than engagement date."
-            )
-
-        # Validate that completion date is not before engagement date
-        if engagement_date and completion_date and completion_date < engagement_date:
-            raise serializers.ValidationError(
-                "Completion date cannot be earlier than engagement date."
-            )
-
-        # Validate that date complied is not before engagement date
-        if engagement_date and date_complied and date_complied < engagement_date:
-            raise serializers.ValidationError(
-                "Date complied cannot be earlier than engagement date."
-            )
-
-        return data
-
-
-class TaxCaseListSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source="client.name", read_only=True)
-    client_tin = serializers.CharField(source="client.tin", read_only=True)
-    assigned_to_name = serializers.CharField(
-        source="assigned_to.get_full_name", read_only=True
-    )
-    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
-    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
-    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
-
-    completion_date = serializers.DateTimeField(
-        format="%b %d, %Y %I:%M %p", read_only=True
-    )
-
-    category_name = serializers.SerializerMethodField()
-    type_name = serializers.SerializerMethodField()
-    form_name = serializers.SerializerMethodField()
-    deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TaxCase
-        fields = [
-            "id",
-            "client_name",
-            "client_tin",
-            "category",
-            "category_name",
-            "type",
-            "type_name",
-            "form",
-            "form_name",
-            "period_covered",
-            "tax_payable",
-            "last_followup",
-            "assigned_to_name",
-            "priority",
-            "engagement_date",
-            "deadline",
-            "last_update",
-            "status",
-            "date_complied",
-            "completion_date",
-            "deadline_days_remaining",
-            "remarks",
-            "status_history",
-        ]
-
-    def get_category_name(self, obj):
-        return obj.get_category_display()
-
-    def get_type_name(self, obj):
-        return obj.get_type_display()
-
-    def get_form_name(self, obj):
-        return obj.get_form_display()
-
-    def get_deadline_days_remaining(self, obj):
-        if obj.deadline:
-            return (obj.deadline - get_today_local()).days
-        return None
-
-    def get_status_history(self, obj):
-        history = obj.status_history or []
-        formatted = []
-        for item in history:
-            formatted.append(
-                {
-                    "status": TaskStatus(item["status"]).label,
-                    "remarks": item["remarks"],
-                    "date": datetime.fromisoformat(item["date"]).strftime(
-                        "%B %d, %Y %I:%M %p"
-                    ),
-                }
-            )
-        return formatted
 
 
 class AppLogSerializer(serializers.ModelSerializer):
