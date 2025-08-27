@@ -30,78 +30,45 @@ def create_notifications(recipient, title, message, link):
 
 def send_notification_on_reminder_date():
     """
-    Send notifications for deadlines where today is the reminder date.
+    Send notifications for tasks where today is 3 days before the deadline date.
 
-    Creates notifications for all users who have deadlines with reminder dates
-    matching today's date.
+    Creates notifications for all users who have tasks with reminder dates
+    matching today's date (3 days before deadline).
     """
+    from datetime import timedelta
+
+    from core.models import Task
+
     today = get_today_local()
-    # for deadline in ClientDeadline.objects.filter(reminder_date=today):
-    #     create_notifications(
-    #         recipient=deadline.assigned_to,
-    #         title="Upcoming Deadline Reminder",
-    #         message=f"Friendly reminder: The deadline '{deadline}' is approaching. Please review your task.",
-    #         link=f"/deadlines/{deadline.id}",
-    #     )
+    # Calculate the deadline date that would be 3 days from today
+    target_deadline_date = today + timedelta(days=3)
+
+    for task in Task.objects.filter(deadline=target_deadline_date):
+        create_notifications(
+            recipient=task.assigned_to,
+            title="Upcoming Task Reminder",
+            message=f"Friendly reminder: The task '{task.description}' is due on {task.deadline.strftime('%b %d, %Y')}. Please review your task.",
+            link="/my-deadlines",
+        )
 
 
 def send_notification_for_due_tasks():
     """
-    Send notifications for deadlines that are due today.
+    Send notifications for tasks that are due today.
 
-    Creates urgent notifications for all users who have deadlines with due dates
+    Creates urgent notifications for all users who have tasks with due dates
     matching today's date.
     """
+    from core.models import Task
+
     today = get_today_local()
-    # for deadline in ClientDeadline.objects.filter(due_date=today):
-    #     create_notifications(
-    #         recipient=deadline.assigned_to,
-    #         title="Action Required: Deadline Due Today",
-    #         message=f"Urgent: The deadline '{deadline}' is due today. Please complete and submit as soon as possible.",
-    #         link=f"/deadlines/{deadline.id}",
-    #     )
-
-
-def update_deadline_statuses():
-    """Automatically update deadline statuses based on due dates and send notifications."""
-    today = get_today_local()
-
-    # pending_to_overdue = ClientDeadline.objects.filter(
-    #     due_date__lt=today, status="pending"
-    # ).select_related("assigned_to")
-
-    # overdue_to_pending = ClientDeadline.objects.filter(
-    #     due_date__gt=today, status="overdue"
-    # ).select_related("assigned_to")
-
-    # updates = []
-    # for deadline in pending_to_overdue:
-    #     deadline.status = "overdue"
-    #     updates.append(deadline)
-
-    # for deadline in overdue_to_pending:
-    #     deadline.status = "pending"
-    #     updates.append(deadline)
-
-    # if updates:
-    #     ClientDeadline.objects.bulk_update(updates, ["status"])
-
-    #     # Send notifications
-    #     for deadline in pending_to_overdue:
-    #         create_notifications(
-    #             recipient=deadline.assigned_to,
-    #             title="Deadline Status Updated",
-    #             message=f"The deadline '{deadline.title}' (due {deadline.due_date}) has been marked as Overdue.",
-    #             link=f"/deadlines/{deadline.id}",
-    #         )
-
-    #     for deadline in overdue_to_pending:
-    #         create_notifications(
-    #             recipient=deadline.assigned_to,
-    #             title="Deadline Status Updated",
-    #             message=f"The deadline '{deadline.title}' (due {deadline.due_date}) has been reverted to Pending status.",
-    #             link=f"/deadlines/{deadline.id}",
-    #         )
+    for task in Task.objects.filter(deadline=today):
+        create_notifications(
+            recipient=task.assigned_to,
+            title="Action Required: Task Due Today",
+            message=f"Urgent: The task '{task.description}' is due today. Please complete and submit as soon as possible.",
+            link="/my-deadlines",
+        )
 
 
 def send_client_birthday_notifications():
@@ -180,7 +147,7 @@ def initiate_task_approval(task, approvers_list, initiated_by):
         recipient=first_approver,
         title="Task Approval Required",
         message=f"Task '{task.description}' for {task.client.name} requires your approval.",
-        link=f"tasks/{task.id}/approve",
+        link="/approvals",
     )
 
 
@@ -225,7 +192,7 @@ def process_task_approval(task, approver, action, comments=None, next_approver=N
             recipient=task.assigned_to,
             title="Task Requires Revision",
             message=f"Your task '{task.description}' has been sent back for revision. Comments: {comments}",
-            link=f"tasks/{task.id}",
+            link="/my-deadlines",
         )
 
         create_log(approver, f"Rejected task approval: {task.description} - {comments}")
@@ -278,7 +245,7 @@ def process_task_approval(task, approver, action, comments=None, next_approver=N
                 recipient=next_approver,
                 title="Task Approval Required",
                 message=f"Task '{task.description}' for {task.client.name} has been forwarded to you for approval by {approver.fullname}.",
-                link=f"tasks/{task.id}/approve",
+                link="/approvals",
             )
 
             create_log(
@@ -311,7 +278,7 @@ def process_task_approval(task, approver, action, comments=None, next_approver=N
                 recipient=task.assigned_to,
                 title="Task Approved & Completed",
                 message=f"Your task '{task.description}' has been approved and marked as completed by {approver.fullname}.",
-                link=f"tasks/{task.id}",
+                link="/my-deadlines",
             )
 
             create_log(

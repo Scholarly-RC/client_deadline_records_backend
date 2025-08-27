@@ -227,8 +227,46 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Set last_update timestamp when creating"""
-        serializer.save(last_update=timezone.now())
-        create_log(self.request.user, f"Created task: {serializer.instance}.")
+        instance = serializer.save(last_update=timezone.now())
+        create_log(self.request.user, f"Created task: {instance}.")
+
+        # Notify assigned user if task is assigned
+        if instance.assigned_to and instance.assigned_to != self.request.user:
+            create_notifications(
+                recipient=instance.assigned_to,
+                title="New Task Assigned",
+                message=f"A new task '{instance.description}' has been assigned to you.",
+                link="/my-deadlines",
+            )
+
+    def update(self, request, *args, **kwargs):
+        """Override update to track assigned_to changes"""
+        # Get the instance before update
+        instance = self.get_object()
+        original_assigned_to = instance.assigned_to
+
+        # Perform the update
+        response = super().update(request, *args, **kwargs)
+
+        # Get the updated instance
+        updated_instance = self.get_object()
+
+        # Check if assigned_to has changed and notify new assignee
+        if (
+            original_assigned_to != updated_instance.assigned_to
+            and updated_instance.assigned_to
+            and updated_instance.assigned_to != self.request.user
+        ):
+            create_notifications(
+                recipient=updated_instance.assigned_to,
+                title=(
+                    "Task Reassigned" if original_assigned_to else "New Task Assigned"
+                ),
+                message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
+                link="/my-deadlines",
+            )
+
+        return response
 
     def perform_update(self, serializer):
         """Set last_update timestamp when updating"""
@@ -457,24 +495,33 @@ class TaskViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=["GET"], url_path="approval-history")
-    def approval_history(self, request, pk=None):
-        """Get approval history for a task"""
+    @action(detail=True, methods=["GET"], url_path="status-history")
+    def status_history(self, request, pk=None):
+        """Get status history for a specific task"""
         task = self.get_object()
 
-        approvals = TaskApproval.objects.filter(task=task).order_by("step_number")
+        # Get all status history records for this task, ordered by creation date
         status_history = TaskStatusHistory.objects.filter(task=task).order_by(
             "-created_at"
         )
 
-        return Response(
-            {
-                "approvals": TaskApprovalSerializer(approvals, many=True).data,
-                "status_history": TaskStatusHistorySerializer(
-                    status_history, many=True
-                ).data,
-            }
-        )
+        # Serialize the status history records
+        serializer = TaskStatusHistorySerializer(status_history, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["GET"], url_path="task-approvals")
+    def task_approvals(self, request, pk=None):
+        """Get approval records for a specific task"""
+        task = self.get_object()
+
+        # Get all approval records for this task, ordered by step number
+        approvals = TaskApproval.objects.filter(task=task).order_by("step_number")
+
+        # Serialize the approval records
+        serializer = TaskApprovalSerializer(approvals, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["GET"], url_path="pending-approvals")
     def pending_approvals(self, request):

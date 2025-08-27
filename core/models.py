@@ -317,27 +317,6 @@ class Task(models.Model):
                 self.save(update_fields=["remarks", "last_update"])
 
     @property
-    def status_history_display(self):
-        """Get formatted status history for display"""
-        history = []
-        for record in self.status_history_records.all()[:10]:  # Latest 10 records
-            history.append(
-                {
-                    "old_status": (
-                        record.get_old_status_display() if record.old_status else "New"
-                    ),
-                    "new_status": record.get_new_status_display(),
-                    "changed_by": (
-                        record.changed_by.fullname if record.changed_by else "System"
-                    ),
-                    "remarks": record.remarks,
-                    "date": record.formatted_date,
-                    "change_type": record.get_change_type_display(),
-                }
-            )
-        return history
-
-    @property
     def pending_approver(self):
         """Get the current pending approver for this task"""
         if self.status == TaskStatus.FOR_CHECKING and self.requires_approval:
@@ -361,24 +340,6 @@ class Task(models.Model):
             .first()
         )
         return latest_history.remarks if latest_history else self.remarks
-
-    @property
-    def approval_history(self):
-        """Get formatted approval history for display"""
-        history = []
-        for approval in self.approvals.exclude(action="pending").order_by(
-            "step_number"
-        ):
-            history.append(
-                {
-                    "step": approval.step_number,
-                    "approver": approval.approver.fullname,
-                    "action": approval.get_action_display(),
-                    "comments": approval.comments,
-                    "date": approval.updated_at.strftime("%b %d, %Y at %I:%M %p"),
-                }
-            )
-        return history
 
     def clean(self):
         """Validate category-specific required fields"""

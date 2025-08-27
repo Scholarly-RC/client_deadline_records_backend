@@ -144,8 +144,6 @@ class TaskSerializer(serializers.ModelSerializer):
 
     # Approval-related read-only fields
     pending_approver = UserMiniSerializer(read_only=True)
-    approval_history = serializers.ReadOnlyField()
-    status_history_display = serializers.ReadOnlyField()
 
     class Meta:
         model = Task
@@ -183,8 +181,6 @@ class TaskSerializer(serializers.ModelSerializer):
             "current_approval_step",
             "requires_approval",
             "pending_approver",
-            "approval_history",
-            "status_history_display",
         ]
         read_only_fields = ["id", "last_update"]
 
@@ -228,7 +224,6 @@ class TaskListSerializer(serializers.ModelSerializer):
     completion_date = serializers.DateField(format="%b %d, %Y", read_only=True)
     last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
     deadline_days_remaining = serializers.SerializerMethodField()
-    status_history = serializers.SerializerMethodField()
     category_display = serializers.CharField(
         source="get_category_display", read_only=True
     )
@@ -236,7 +231,6 @@ class TaskListSerializer(serializers.ModelSerializer):
 
     # Approver details
     pending_approver = UserMiniSerializer(read_only=True)
-    approval_history = serializers.ReadOnlyField()
     current_approval_step = serializers.IntegerField(read_only=True)
     requires_approval = serializers.BooleanField(read_only=True)
     all_approvers = serializers.SerializerMethodField()
@@ -259,11 +253,9 @@ class TaskListSerializer(serializers.ModelSerializer):
             "last_update",
             "deadline_days_remaining",
             "remarks",
-            "status_history",
             "category_specific_fields",
             # Approval-related fields
             "pending_approver",
-            "approval_history",
             "current_approval_step",
             "requires_approval",
             "all_approvers",
@@ -273,10 +265,6 @@ class TaskListSerializer(serializers.ModelSerializer):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
-
-    def get_status_history(self, obj):
-        """Get formatted status history from the new system"""
-        return obj.status_history_display
 
     def get_all_approvers(self, obj):
         """Get all approvers in the approval workflow (both pending and completed)"""
