@@ -232,7 +232,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Set last_update timestamp when creating"""
-        instance = serializer.save(last_update=timezone.now())
+        instance = serializer.save(last_update=get_now_local())
         create_log(self.request.user, f"Created task: {instance}.")
 
         # Notify assigned user if task is assigned
@@ -275,13 +275,13 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """Set last_update timestamp when updating"""
-        serializer.save(last_update=timezone.now())
+        serializer.save(last_update=get_now_local())
         create_log(self.request.user, f"Updated task: {serializer.instance}.")
 
     @action(detail=False, methods=["get"])
     def overdue(self, request):
         """Get all overdue tasks"""
-        today = timezone.now().date()
+        today = get_today_local()
         overdue_tasks = self.get_queryset().filter(
             deadline__lt=today,
             status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
@@ -293,7 +293,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def due_soon(self, request):
         """Get tasks due within the next 7 days"""
-        today = timezone.now().date()
+        today = get_today_local()
         next_week = today + timedelta(days=7)
 
         due_soon_tasks = self.get_queryset().filter(
@@ -338,15 +338,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Mark a task as completed"""
         task = self.get_object()
 
-        completion_date = request.data.get("completion_date", timezone.now().date())
-        date_complied = request.data.get("date_complied", timezone.now().date())
+        completion_date = request.data.get("completion_date", get_today_local())
+        date_complied = request.data.get("date_complied", get_today_local())
         remarks = request.data.get("remarks", task.remarks)
 
-        task.status = "COMPLETED"
+        task.status = TaskStatus.COMPLETED.value
         task.completion_date = completion_date
         task.date_complied = date_complied
         task.remarks = remarks
-        task.last_update = timezone.now()
+        task.last_update = get_now_local()
         task.save()
 
         serializer = self.get_serializer(task)
@@ -363,7 +363,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             "in_progress": queryset.filter(status="IN_PROGRESS").count(),
             "not_started": queryset.filter(status="NOT_YET_STARTED").count(),
             "overdue": queryset.filter(
-                deadline__lt=timezone.now().date(),
+                deadline__lt=get_today_local(),
                 status__in=["NOT_YET_STARTED", "IN_PROGRESS"],
             ).count(),
             "high_priority": queryset.filter(priority="HIGH").count(),
