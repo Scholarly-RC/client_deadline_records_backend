@@ -49,6 +49,7 @@ from core.utils import (
     get_now_local,
     get_today_local,
 )
+from core.pagination import CustomPageNumberPagination
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -124,11 +125,15 @@ class UserViewSet(viewsets.ModelViewSet):
         # Get all tasks assigned to this user
         tasks = user.tasks_assigned_to.all()
 
-        response_data = {
-            "tasks": TaskListSerializer(tasks, many=True).data,
-        }
+        # Apply pagination
+        paginator = CustomPageNumberPagination()
+        paginated_tasks = paginator.paginate_queryset(tasks, request)
 
-        return Response(response_data, status=status.HTTP_200_OK)
+        # Serialize the paginated data
+        serializer = TaskListSerializer(paginated_tasks, many=True)
+
+        # Return paginated response
+        return paginator.get_paginated_response(serializer.data)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
