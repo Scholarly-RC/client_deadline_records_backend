@@ -29,6 +29,7 @@ from core.models import (
     TaskStatusHistory,
     User,
 )
+from core.pagination import CustomPageNumberPagination
 from core.serializers import (
     AppLogSerializer,
     ClientBirthdaySerializer,
@@ -49,7 +50,6 @@ from core.utils import (
     get_now_local,
     get_today_local,
 )
-from core.pagination import CustomPageNumberPagination
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
