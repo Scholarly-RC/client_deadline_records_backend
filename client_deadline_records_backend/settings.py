@@ -120,6 +120,23 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Client Deadline Records Backend API",
+    "DESCRIPTION": "Backend system for managing client deadlines and task tracking",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "TaskStatusEnum": "core.choices.TaskStatus",
+        "ClientStatusEnum": "core.choices.ClientStatus",
+        "TaskCategoryEnum": "core.choices.TaskCategory",
+        "TaskPriorityEnum": "core.choices.TaskPriority",
+        "UserRoleEnum": "core.choices.UserRoles",
+        "TaxCaseCategoryEnum": "core.choices.TaxCaseCategory",
+        "TypeOfTaxCaseEnum": "core.choices.TypeOfTaxCase",
+        "BirFormsEnum": "core.choices.BirForms",
+    },
+}
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),

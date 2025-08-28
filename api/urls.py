@@ -5,7 +5,6 @@ from core.views import (
     AppLogViewSet,
     ClientViewSet,
     NotificationViewSet,
-    StatsAPIView,
     TaskViewSet,
     UserViewSet,
 )
@@ -20,6 +19,4 @@ router.register(r"app-logs", AppLogViewSet)
 router.register(r"tasks", TaskViewSet)
 
 
-urlpatterns = router.urls + [
-    path("stats/", StatsAPIView.as_view(), name="stats"),
-]
+urlpatterns = router.urls

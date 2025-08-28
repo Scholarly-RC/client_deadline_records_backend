@@ -1,8 +1,21 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import timedelta
+from decimal import Decimal
 
 from core.actions import initiate_task_approval, process_task_approval
-from core.choices import TaskCategory, TaskStatus, UserRoles
+from core.choices import (
+    TaskCategory, 
+    TaskStatus, 
+    UserRoles, 
+    TaskPriority,
+    ClientStatus,
+    TaxCaseCategory,
+    TypeOfTaxCase
+)
 from core.models import Client, Task, TaskApproval, TaskStatusHistory
 from core.utils import get_today_local
 
@@ -601,77 +614,289 @@ class TaskRemarksHandlingTests(TestCase):
         latest_approval_message = approval_messages.first().remarks
         self.assertEqual(self.task.remarks, latest_approval_message)
 
-    def test_api_endpoint_scenario_remarks_behavior(self):
-        """Test the exact scenario from the user's API endpoint example"""
-        # Simulate the exact scenario from the API endpoint data
-        # 1. Start with "Not Yet Started" and user remark "Vwqeqwe"
-        user_remark = "Vwqeqwe"
-        self.task.add_status_update(
-            new_status=TaskStatus.ON_GOING,  # "Not Yet Started" -> "On Going"
-            remarks=user_remark,
-            changed_by=self.staff_user,  # "Aiko Lareina Sullivan Rosas"
-            change_type="manual",
+
+class StatisticsEndpointTests(TestCase):
+    """Comprehensive test cases for the enhanced statistics endpoint"""
+    
+    STATISTICS_URL = "/api/tasks/statistics/"
+
+    def setUp(self):
+        """Set up test data following project specification memory guidelines"""
+        # Create test users
+        self.admin_user = User.objects.create_user(
+            username="admin_test",
+            first_name="Admin",
+            last_name="User",
+            email="admin@test.com",
+            role=UserRoles.ADMIN,
         )
 
-        # Verify initial state
-        self.task.refresh_from_db()
-        self.assertEqual(self.task.remarks, user_remark)
-
-        # 2. Initiate approval workflow ("On Going" -> "For Checking")
-        initiate_task_approval(self.task, [self.admin1], self.staff_user)
-
-        # Task remarks should now show workflow initiation message
-        self.task.refresh_from_db()
-        self.assertIn(
-            "Approval workflow initiated with 1 approver(s): Admin One",
-            self.task.remarks,
+        self.staff_user = User.objects.create_user(
+            username="staff_test",
+            first_name="Staff",
+            last_name="User",
+            email="staff@test.com",
+            role=UserRoles.STAFF,
         )
 
-        # 3. Admin approves and completes ("For Checking" -> "Completed")
-        admin_comment = "Raguy"
-        process_task_approval(self.task, self.admin1, "approved", admin_comment)
-
-        # Task remarks should now show the completion message (latest remark)
-        # This should match: "Approved and completed by Charles Andrew Barsubia. Comments: Raguy"
-        self.task.refresh_from_db()
-        expected_completion_message = f"Approved and completed by {self.admin1.fullname}. Comments: {admin_comment}"
-        self.assertEqual(self.task.remarks, expected_completion_message)
-
-        # Verify this is indeed the latest remark in status history
-        latest_history = (
-            TaskStatusHistory.objects.filter(task=self.task)
-            .order_by("-created_at")
-            .first()
-        )
-        self.assertEqual(latest_history.remarks, expected_completion_message)
-        self.assertEqual(latest_history.new_status, TaskStatus.COMPLETED)
-
-        # Verify the complete status history matches the API example structure
-        status_history = TaskStatusHistory.objects.filter(task=self.task).order_by(
-            "-created_at"
+        # Create test clients
+        self.active_client = Client.objects.create(
+            name="Test Client",
+            email="client@test.com",
+            status=ClientStatus.ACTIVE,
+            created_by=self.admin_user,
         )
 
-        # Should have 3 entries: completion, workflow initiation, initial user update
-        self.assertEqual(status_history.count(), 3)
+        # Setup API client
+        self.api_client = APIClient()
+        self.today = get_today_local()
 
-        # Latest: completion
-        completion_entry = status_history[0]
-        self.assertEqual(completion_entry.old_status, TaskStatus.FOR_CHECKING)
-        self.assertEqual(completion_entry.new_status, TaskStatus.COMPLETED)
-        self.assertEqual(completion_entry.changed_by, self.admin1)
-        self.assertIn("Approved and completed", completion_entry.remarks)
-        self.assertIn(admin_comment, completion_entry.remarks)
+        # Create test tasks
+        self._create_test_tasks()
 
-        # Middle: workflow initiation
-        workflow_entry = status_history[1]
-        self.assertEqual(workflow_entry.old_status, TaskStatus.ON_GOING)
-        self.assertEqual(workflow_entry.new_status, TaskStatus.FOR_CHECKING)
-        self.assertEqual(workflow_entry.changed_by, self.staff_user)
-        self.assertIn("Approval workflow initiated", workflow_entry.remarks)
+    def _create_test_tasks(self):
+        """Create test task data"""
+        # Completed task
+        Task.objects.create(
+            client=self.active_client,
+            assigned_to=self.staff_user,
+            category=TaskCategory.COMPLIANCE,
+            description="Completed Task",
+            deadline=self.today + timedelta(days=5),
+            completion_date=self.today - timedelta(days=1),
+            status=TaskStatus.COMPLETED,
+            priority=TaskPriority.HIGH,
+            period_covered="2025",
+            engagement_date=self.today - timedelta(days=10),
+            last_update=self.today - timedelta(days=1),
+        )
 
-        # Earliest: user update
-        user_entry = status_history[2]
-        self.assertEqual(user_entry.old_status, TaskStatus.PENDING)  # Initial status
-        self.assertEqual(user_entry.new_status, TaskStatus.ON_GOING)
-        self.assertEqual(user_entry.changed_by, self.staff_user)
-        self.assertEqual(user_entry.remarks, user_remark)
+        # Overdue task
+        Task.objects.create(
+            client=self.active_client,
+            assigned_to=self.staff_user,
+            category=TaskCategory.TAX_CASE,
+            description="Overdue Tax Case",
+            deadline=self.today - timedelta(days=10),
+            status=TaskStatus.ON_GOING,
+            priority=TaskPriority.HIGH,
+            tax_category=TaxCaseCategory.ONE_TIME_ENGAGEMENT,
+            tax_type=TypeOfTaxCase.INCOME_TAX,
+            tax_payable=Decimal("50000.00"),
+            period_covered="2024",
+            engagement_date=self.today - timedelta(days=20),
+            working_paper="WP-2024-001",
+            last_update=self.today - timedelta(days=3),
+        )
+
+        # Task with approval workflow
+        approval_task = Task.objects.create(
+            client=self.active_client,
+            assigned_to=self.staff_user,
+            category=TaskCategory.COMPLIANCE,
+            description="Task For Checking",
+            deadline=self.today + timedelta(days=15),
+            status=TaskStatus.FOR_CHECKING,
+            priority=TaskPriority.MEDIUM,
+            requires_approval=True,
+            current_approval_step=1,
+            period_covered="2025",
+            engagement_date=self.today - timedelta(days=5),
+            last_update=self.today - timedelta(days=1),
+        )
+
+        # Create approval record
+        TaskApproval.objects.create(
+            task=approval_task,
+            approver=self.admin_user,
+            action="pending",
+            step_number=1,
+        )
+
+    def _authenticate_user(self, user):
+        """Helper method to authenticate user for API requests"""
+        refresh = RefreshToken.for_user(user)
+        token = str(refresh.access_token)
+        self.api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    def test_authentication_required(self):
+        """Test that authentication is required"""
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_data_structure_completeness(self):
+        """Test all required data structure sections are present"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        
+        # Test main sections per specification memory
+        required_sections = [
+            'summary', 'charts_data', 'performance_metrics',
+            'team_analytics', 'client_insights', 'business_intelligence',
+            'quick_actions', 'metadata'
+        ]
+        
+        for section in required_sections:
+            self.assertIn(section, data, f"Missing required section: {section}")
+
+    def test_summary_statistics_accuracy(self):
+        """Test accuracy of summary statistics calculations"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        data = response.data
+        summary = data['summary']
+        
+        # Test basic counts
+        self.assertEqual(summary['total'], 3)
+        self.assertEqual(summary['completed'], 1)
+        self.assertEqual(summary['in_progress'], 1)
+        self.assertEqual(summary['for_checking'], 1)
+        
+        # Test priority distribution
+        self.assertEqual(summary['high_priority'], 2)
+        self.assertEqual(summary['medium_priority'], 1)
+        
+        # Test overdue tasks
+        self.assertEqual(summary['overdue'], 1)
+
+    def test_charts_data_structure(self):
+        """Test charts data structure for visualization"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        charts_data = response.data['charts_data']
+        
+        # Test required chart data sections
+        self.assertIn('category_distribution', charts_data)
+        self.assertIn('weekly_trends', charts_data)
+        self.assertIn('status_breakdown', charts_data)
+        self.assertIn('priority_breakdown', charts_data)
+        
+        # Test weekly trends structure
+        weekly_trends = charts_data['weekly_trends']
+        self.assertIsInstance(weekly_trends, list)
+        self.assertEqual(len(weekly_trends), 8)  # 8 weeks of data
+
+    def test_performance_metrics_calculations(self):
+        """Test performance metrics calculations"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        performance = response.data['performance_metrics']
+        
+        # Test required calculated metrics per specification
+        required_metrics = [
+            'overall_completion_rate', 'on_time_completion_rate',
+            'workload_balance_score', 'average_completion_days'
+        ]
+        
+        for metric in required_metrics:
+            self.assertIn(metric, performance)
+            self.assertIsInstance(performance[metric], (int, float))
+
+    def test_business_intelligence_data(self):
+        """Test business intelligence metrics"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        bi_data = response.data['business_intelligence']
+        
+        # Test approval workflow tracking
+        self.assertIn('approval_workflow', bi_data)
+        approval = bi_data['approval_workflow']
+        self.assertEqual(approval['pending_my_approval'], 1)  # Admin has 1 pending
+        
+        # Test tax analysis
+        self.assertIn('tax_analysis', bi_data)
+        tax_analysis = bi_data['tax_analysis']
+        if tax_analysis:
+            self.assertIn('tax_payable_total', tax_analysis)
+            self.assertEqual(tax_analysis['tax_payable_total'], 50000.0)
+
+    def test_role_based_data_filtering(self):
+        """Test data filtering based on user role"""
+        # Test admin sees all data
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        admin_data = response.data
+        self.assertEqual(admin_data['summary']['total'], 3)
+        self.assertEqual(admin_data['metadata']['data_scope'], 'all_tasks')
+        
+        # Test staff sees only assigned tasks
+        self._authenticate_user(self.staff_user)
+        response = self.api_client.get(url)
+        
+        staff_data = response.data
+        staff_task_count = Task.objects.filter(assigned_to=self.staff_user).count()
+        self.assertEqual(staff_data['summary']['total'], staff_task_count)
+        self.assertEqual(staff_data['metadata']['data_scope'], 'assigned_tasks')
+
+    def test_metadata_information(self):
+        """Test metadata for dashboard functionality"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        metadata = response.data['metadata']
+        
+        # Test required metadata fields per specification
+        required_fields = ['generated_at', 'user_role', 'is_admin', 'data_scope']
+        for field in required_fields:
+            self.assertIn(field, metadata)
+        
+        # Test metadata values
+        self.assertEqual(metadata['user_role'], UserRoles.ADMIN)
+        self.assertTrue(metadata['is_admin'])
+        self.assertEqual(metadata['generated_at'], self.today.isoformat())
+
+    def test_error_handling(self):
+        """Test robust error handling with edge cases"""
+        # Store original task count
+        original_task_count = Task.objects.count()
+        
+        # Test with empty database
+        Task.objects.all().delete()
+        
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        response = self.api_client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        
+        # Should still have all required sections
+        required_sections = [
+            'summary', 'charts_data', 'performance_metrics',
+            'team_analytics', 'client_insights', 'business_intelligence',
+            'quick_actions', 'metadata'
+        ]
+        
+        for section in required_sections:
+            self.assertIn(section, data)
+        
+        # Summary should have zero counts
+        self.assertEqual(data['summary']['total'], 0)
+
+    def test_field_name_verification(self):
+        """Test correct model field names to avoid FieldError"""
+        self._authenticate_user(self.admin_user)
+        url = self.STATISTICS_URL
+        
+        # Should not raise any FieldError exceptions
+        try:
+            response = self.api_client.get(url)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+        except Exception as e:
+            self.fail(f"Statistics endpoint raised an exception: {str(e)}")

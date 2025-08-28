@@ -1,7 +1,8 @@
 openapi: 3.0.3
 info:
-  title: ''
-  version: 0.0.0
+  title: Client Deadline Records Backend API
+  version: 1.0.0
+  description: Backend system for managing client deadlines and task tracking
 paths:
   /api/app-logs/:
     get:
@@ -559,163 +560,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Notification'
           description: ''
-  /api/schema/:
-    get:
-      operationId: schema_retrieve
-      description: |-
-        OpenApi3 schema for this API. Format can be selected via content negotiation.
-
-        - YAML: application/vnd.oai.openapi
-        - JSON: application/vnd.oai.openapi+json
-      parameters:
-      - in: query
-        name: format
-        schema:
-          type: string
-          enum:
-          - json
-          - yaml
-      - in: query
-        name: lang
-        schema:
-          type: string
-          enum:
-          - af
-          - ar
-          - ar-dz
-          - ast
-          - az
-          - be
-          - bg
-          - bn
-          - br
-          - bs
-          - ca
-          - ckb
-          - cs
-          - cy
-          - da
-          - de
-          - dsb
-          - el
-          - en
-          - en-au
-          - en-gb
-          - eo
-          - es
-          - es-ar
-          - es-co
-          - es-mx
-          - es-ni
-          - es-ve
-          - et
-          - eu
-          - fa
-          - fi
-          - fr
-          - fy
-          - ga
-          - gd
-          - gl
-          - he
-          - hi
-          - hr
-          - hsb
-          - hu
-          - hy
-          - ia
-          - id
-          - ig
-          - io
-          - is
-          - it
-          - ja
-          - ka
-          - kab
-          - kk
-          - km
-          - kn
-          - ko
-          - ky
-          - lb
-          - lt
-          - lv
-          - mk
-          - ml
-          - mn
-          - mr
-          - ms
-          - my
-          - nb
-          - ne
-          - nl
-          - nn
-          - os
-          - pa
-          - pl
-          - pt
-          - pt-br
-          - ro
-          - ru
-          - sk
-          - sl
-          - sq
-          - sr
-          - sr-latn
-          - sv
-          - sw
-          - ta
-          - te
-          - tg
-          - th
-          - tk
-          - tr
-          - tt
-          - udm
-          - ug
-          - uk
-          - ur
-          - uz
-          - vi
-          - zh-hans
-          - zh-hant
-      tags:
-      - schema
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/vnd.oai.openapi:
-              schema:
-                type: object
-                additionalProperties: {}
-            application/yaml:
-              schema:
-                type: object
-                additionalProperties: {}
-            application/vnd.oai.openapi+json:
-              schema:
-                type: object
-                additionalProperties: {}
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-          description: ''
-  /api/stats/:
-    get:
-      operationId: stats_retrieve
-      tags:
-      - stats
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
   /api/tasks/:
     get:
       operationId: tasks_list
@@ -1019,11 +863,7 @@ paths:
           description: ''
     put:
       operationId: tasks_update
-      description: |-
-        ViewSet for managing Task records
-
-        Provides CRUD operations for tasks with filtering,
-        searching, and ordering capabilities.
+      description: Override update to track assigned_to changes
       parameters:
       - in: path
         name: id
@@ -1219,6 +1059,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
           description: ''
+  /api/tasks/{id}/status-history/:
+    get:
+      operationId: tasks_status_history_retrieve
+      description: Get status history for a specific task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/task-approvals/:
+    get:
+      operationId: tasks_task_approvals_retrieve
+      description: Get approval records for a specific task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
   /api/tasks/{id}/update-deadline/:
     post:
       operationId: tasks_update_deadline_create
@@ -1341,7 +1227,7 @@ paths:
   /api/tasks/statistics/:
     get:
       operationId: tasks_statistics_retrieve
-      description: Get task statistics
+      description: Get comprehensive task statistics optimized for dashboard visualization
       tags:
       - tasks
       security:
@@ -1703,27 +1589,21 @@ components:
       - details
       - id
       - user
+    BirFormsEnum:
+      enum:
+      - 2551Q
+      - '1701'
+      - 0619E
+      - 1601EQ
+      type: string
+      description: |-
+        * `2551Q` - BIR Form 2551Q - Quarterly Percentage Tax Return
+        * `1701` - BIR Form 1701 - Annual Income Tax Return (Individuals, Estates, Trusts)
+        * `0619E` - BIR Form 0619E - Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)
+        * `1601EQ` - BIR Form 1601-EQ - Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)
     BlankEnum:
       enum:
       - ''
-    CategoryEnum:
-      enum:
-      - compliance
-      - financial_statement
-      - accounting_audit
-      - finance_implementation
-      - hr_implementation
-      - miscellaneous
-      - tax_case
-      type: string
-      description: |-
-        * `compliance` - Compliance
-        * `financial_statement` - Financial Statement Preparation
-        * `accounting_audit` - Accounting Audit
-        * `finance_implementation` - Finance Implementation
-        * `hr_implementation` - Human Resource Implementation
-        * `miscellaneous` - Miscellaneous Tasks
-        * `tax_case` - Tax Case
     Client:
       type: object
       properties:
@@ -1799,18 +1679,6 @@ components:
       description: |-
         * `active` - Active
         * `inactive` - Inactive
-    FormEnum:
-      enum:
-      - 2551Q
-      - '1701'
-      - 0619E
-      - 1601EQ
-      type: string
-      description: |-
-        * `2551Q` - BIR Form 2551Q - Quarterly Percentage Tax Return
-        * `1701` - BIR Form 1701 - Annual Income Tax Return (Individuals, Estates, Trusts)
-        * `0619E` - BIR Form 0619E - Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)
-        * `1601EQ` - BIR Form 1601-EQ - Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)
     Notification:
       type: object
       properties:
@@ -2073,12 +1941,12 @@ components:
           - $ref: '#/components/schemas/ClientMini'
           readOnly: true
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/TaskCategoryEnum'
         description:
           type: string
           maxLength: 255
         status:
-          $ref: '#/components/schemas/Status752Enum'
+          $ref: '#/components/schemas/TaskStatusEnum'
         assigned_to:
           type: integer
         assigned_to_detail:
@@ -2086,7 +1954,7 @@ components:
           - $ref: '#/components/schemas/User'
           readOnly: true
         priority:
-          $ref: '#/components/schemas/PriorityEnum'
+          $ref: '#/components/schemas/TaskPriorityEnum'
         deadline:
           type: string
           format: date
@@ -2137,19 +2005,19 @@ components:
         tax_category:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/TaxCategoryEnum'
+          - $ref: '#/components/schemas/TaxCaseCategoryEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         tax_type:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/TaxTypeEnum'
+          - $ref: '#/components/schemas/TypeOfTaxCaseEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         form:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/FormEnum'
+          - $ref: '#/components/schemas/BirFormsEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         working_paper:
@@ -2166,7 +2034,8 @@ components:
           format: date
           nullable: true
         category_specific_fields:
-          type: string
+          type: object
+          additionalProperties: {}
           readOnly: true
         current_approval_step:
           type: integer
@@ -2209,7 +2078,7 @@ components:
           type: string
           readOnly: true
         role:
-          $ref: '#/components/schemas/RoleEnum'
+          $ref: '#/components/schemas/UserRoleEnum'
         is_active:
           type: boolean
           title: Active
@@ -2223,47 +2092,11 @@ components:
           type: string
           writeOnly: true
         is_admin:
-          type: string
+          type: boolean
           readOnly: true
         has_logs:
-          type: string
+          type: boolean
           readOnly: true
-    PriorityEnum:
-      enum:
-      - high
-      - medium
-      - low
-      type: string
-      description: |-
-        * `high` - High
-        * `medium` - Medium
-        * `low` - Low
-    RoleEnum:
-      enum:
-      - admin
-      - staff
-      type: string
-      description: |-
-        * `admin` - Admin
-        * `staff` - Staff
-    Status752Enum:
-      enum:
-      - completed
-      - for_revision
-      - for_checking
-      - on_going
-      - pending
-      - not_yet_started
-      - cancelled
-      type: string
-      description: |-
-        * `completed` - Completed
-        * `for_revision` - For Revision
-        * `for_checking` - For Checking
-        * `on_going` - On Going
-        * `pending` - Pending
-        * `not_yet_started` - Not Yet Started
-        * `cancelled` - Cancelled
     Task:
       type: object
       description: Serializer for Task model
@@ -2278,12 +2111,12 @@ components:
           - $ref: '#/components/schemas/ClientMini'
           readOnly: true
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/TaskCategoryEnum'
         description:
           type: string
           maxLength: 255
         status:
-          $ref: '#/components/schemas/Status752Enum'
+          $ref: '#/components/schemas/TaskStatusEnum'
         assigned_to:
           type: integer
         assigned_to_detail:
@@ -2291,7 +2124,7 @@ components:
           - $ref: '#/components/schemas/User'
           readOnly: true
         priority:
-          $ref: '#/components/schemas/PriorityEnum'
+          $ref: '#/components/schemas/TaskPriorityEnum'
         deadline:
           type: string
           format: date
@@ -2342,19 +2175,19 @@ components:
         tax_category:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/TaxCategoryEnum'
+          - $ref: '#/components/schemas/TaxCaseCategoryEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         tax_type:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/TaxTypeEnum'
+          - $ref: '#/components/schemas/TypeOfTaxCaseEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         form:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/FormEnum'
+          - $ref: '#/components/schemas/BirFormsEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         working_paper:
@@ -2371,7 +2204,8 @@ components:
           format: date
           nullable: true
         category_specific_fields:
-          type: string
+          type: object
+          additionalProperties: {}
           readOnly: true
         current_approval_step:
           type: integer
@@ -2396,6 +2230,24 @@ components:
       - id
       - last_update
       - pending_approver
+    TaskCategoryEnum:
+      enum:
+      - compliance
+      - financial_statement
+      - accounting_audit
+      - finance_implementation
+      - hr_implementation
+      - miscellaneous
+      - tax_case
+      type: string
+      description: |-
+        * `compliance` - Compliance
+        * `financial_statement` - Financial Statement Preparation
+        * `accounting_audit` - Accounting Audit
+        * `finance_implementation` - Finance Implementation
+        * `hr_implementation` - Human Resource Implementation
+        * `miscellaneous` - Miscellaneous Tasks
+        * `tax_case` - Tax Case
     TaskList:
       type: object
       description: Simplified serializer for Task list views
@@ -2407,7 +2259,7 @@ components:
           type: string
           readOnly: true
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/TaskCategoryEnum'
         category_display:
           type: string
           readOnly: true
@@ -2415,14 +2267,14 @@ components:
           type: string
           maxLength: 255
         status:
-          $ref: '#/components/schemas/Status752Enum'
+          $ref: '#/components/schemas/TaskStatusEnum'
         assigned_to:
           type: integer
         assigned_to_name:
           type: string
           readOnly: true
         priority:
-          $ref: '#/components/schemas/PriorityEnum'
+          $ref: '#/components/schemas/TaskPriorityEnum'
         engagement_date:
           type: string
           format: date
@@ -2440,16 +2292,14 @@ components:
           format: date-time
           readOnly: true
         deadline_days_remaining:
-          type: string
+          type: integer
           readOnly: true
         remarks:
           type: string
           nullable: true
-        status_history:
-          type: string
-          readOnly: true
         category_specific_fields:
-          type: string
+          type: object
+          additionalProperties: {}
           readOnly: true
         pending_approver:
           allOf:
@@ -2462,7 +2312,8 @@ components:
           type: boolean
           readOnly: true
         all_approvers:
-          type: string
+          type: array
+          items: {}
           readOnly: true
       required:
       - all_approvers
@@ -2482,8 +2333,35 @@ components:
       - last_update
       - pending_approver
       - requires_approval
-      - status_history
-    TaxCategoryEnum:
+    TaskPriorityEnum:
+      enum:
+      - high
+      - medium
+      - low
+      type: string
+      description: |-
+        * `high` - High
+        * `medium` - Medium
+        * `low` - Low
+    TaskStatusEnum:
+      enum:
+      - completed
+      - for_revision
+      - for_checking
+      - on_going
+      - pending
+      - not_yet_started
+      - cancelled
+      type: string
+      description: |-
+        * `completed` - Completed
+        * `for_revision` - For Revision
+        * `for_checking` - For Checking
+        * `on_going` - On Going
+        * `pending` - Pending
+        * `not_yet_started` - Not Yet Started
+        * `cancelled` - Cancelled
+    TaxCaseCategoryEnum:
       enum:
       - OTE
       - RP
@@ -2491,16 +2369,6 @@ components:
       description: |-
         * `OTE` - One-Time Engagement
         * `RP` - Regular Process
-    TaxTypeEnum:
-      enum:
-      - PT
-      - IT
-      - WE
-      type: string
-      description: |-
-        * `PT` - Percentage Tax
-        * `IT` - Income Tax
-        * `WE` - Withholding Tax - Expanded
     TokenObtainPair:
       type: object
       properties:
@@ -2533,6 +2401,16 @@ components:
       required:
       - access
       - refresh
+    TypeOfTaxCaseEnum:
+      enum:
+      - PT
+      - IT
+      - WE
+      type: string
+      description: |-
+        * `PT` - Percentage Tax
+        * `IT` - Income Tax
+        * `WE` - Withholding Tax - Expanded
     User:
       type: object
       properties:
@@ -2563,7 +2441,7 @@ components:
           type: string
           readOnly: true
         role:
-          $ref: '#/components/schemas/RoleEnum'
+          $ref: '#/components/schemas/UserRoleEnum'
         is_active:
           type: boolean
           title: Active
@@ -2577,10 +2455,10 @@ components:
           type: string
           writeOnly: true
         is_admin:
-          type: string
+          type: boolean
           readOnly: true
         has_logs:
-          type: string
+          type: boolean
           readOnly: true
       required:
       - fullname
@@ -2603,17 +2481,25 @@ components:
           type: string
           maxLength: 150
         role:
-          $ref: '#/components/schemas/RoleEnum'
+          $ref: '#/components/schemas/UserRoleEnum'
         fullname:
           type: string
           readOnly: true
         is_admin:
-          type: string
+          type: boolean
           readOnly: true
       required:
       - fullname
       - id
       - is_admin
+    UserRoleEnum:
+      enum:
+      - admin
+      - staff
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `staff` - Staff
   securitySchemes:
     cookieAuth:
       type: apiKey

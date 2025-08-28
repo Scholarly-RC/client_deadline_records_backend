@@ -2,6 +2,8 @@ from datetime import datetime
 
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from typing import Dict, List, Any, Optional
 
 from core.choices import TaskStatus
 from core.models import (
@@ -21,6 +23,9 @@ from core.utils import get_today_local
 
 
 class UserMiniSerializer(serializers.ModelSerializer):
+    fullname = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
         fields = [
@@ -31,6 +36,16 @@ class UserMiniSerializer(serializers.ModelSerializer):
             "fullname",
             "is_admin",
         ]
+    
+    @extend_schema_field(serializers.CharField)
+    def get_fullname(self, obj) -> str:
+        """Return formatted full name"""
+        return obj.fullname
+    
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_admin(self, obj) -> bool:
+        """Return whether user is admin"""
+        return obj.is_admin
 
 
 class ClientMiniSerializer(serializers.ModelSerializer):
@@ -47,6 +62,9 @@ class ClientMiniSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     last_login = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
     password = serializers.CharField(write_only=True)
+    fullname = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    has_logs = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -65,6 +83,21 @@ class UserSerializer(serializers.ModelSerializer):
             "is_admin",
             "has_logs",
         ]
+    
+    @extend_schema_field(serializers.CharField)
+    def get_fullname(self, obj) -> str:
+        """Return formatted full name"""
+        return obj.fullname
+    
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_admin(self, obj) -> bool:
+        """Return whether user is admin"""
+        return obj.is_admin
+    
+    @extend_schema_field(serializers.BooleanField)
+    def get_has_logs(self, obj) -> bool:
+        """Return whether user has logs"""
+        return obj.has_logs
 
     def validate(self, data):
         if (
@@ -140,7 +173,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
     client_detail = ClientMiniSerializer(source="client", read_only=True)
-    category_specific_fields = serializers.ReadOnlyField()
+    category_specific_fields = serializers.SerializerMethodField()
 
     # Approval-related read-only fields
     pending_approver = UserMiniSerializer(read_only=True)
@@ -183,6 +216,11 @@ class TaskSerializer(serializers.ModelSerializer):
             "pending_approver",
         ]
         read_only_fields = ["id", "last_update"]
+    
+    @extend_schema_field(serializers.DictField)
+    def get_category_specific_fields(self, obj) -> Dict[str, Any]:
+        """Return category-specific fields for the task"""
+        return obj.category_specific_fields
 
     def validate(self, data):
         """Custom validation for date fields"""
@@ -227,7 +265,7 @@ class TaskListSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(
         source="get_category_display", read_only=True
     )
-    category_specific_fields = serializers.ReadOnlyField()
+    category_specific_fields = serializers.SerializerMethodField()
 
     # Approver details
     pending_approver = UserMiniSerializer(read_only=True)
@@ -261,12 +299,20 @@ class TaskListSerializer(serializers.ModelSerializer):
             "all_approvers",
         ]
 
-    def get_deadline_days_remaining(self, obj):
+    @extend_schema_field(serializers.IntegerField)
+    def get_deadline_days_remaining(self, obj) -> Optional[int]:
+        """Calculate days remaining until deadline"""
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
+    
+    @extend_schema_field(serializers.DictField)
+    def get_category_specific_fields(self, obj) -> Dict[str, Any]:
+        """Return category-specific fields for the task"""
+        return obj.category_specific_fields
 
-    def get_all_approvers(self, obj):
+    @extend_schema_field(serializers.ListField)
+    def get_all_approvers(self, obj) -> List[Dict[str, Any]]:
         """Get all approvers in the approval workflow (both pending and completed)"""
         if not obj.requires_approval:
             return []
