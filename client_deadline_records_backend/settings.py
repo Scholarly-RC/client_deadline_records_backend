@@ -24,7 +24,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Disable CSRF for API endpoints since we use JWT authentication
 CSRF_EXEMPT_URLS = [
-    r'^/api/',
+    r"^/api/",
 ]
 
 INSTALLED_APPS = [
