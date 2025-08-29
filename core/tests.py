@@ -1,21 +1,20 @@
-from datetime import timedelta
-from decimal import Decimal
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import timedelta
+from decimal import Decimal
 
 from core.actions import initiate_task_approval, process_task_approval
 from core.choices import (
-    ClientStatus,
-    TaskCategory,
+    TaskCategory, 
+    TaskStatus, 
+    UserRoles, 
     TaskPriority,
-    TaskStatus,
+    ClientStatus,
     TaxCaseCategory,
-    TypeOfTaxCase,
-    UserRoles,
+    TypeOfTaxCase
 )
 from core.models import Client, Task, TaskApproval, TaskStatusHistory
 from core.utils import get_today_local
@@ -618,7 +617,7 @@ class TaskRemarksHandlingTests(TestCase):
 
 class StatisticsEndpointTests(TestCase):
     """Comprehensive test cases for the enhanced statistics endpoint"""
-
+    
     STATISTICS_URL = "/api/tasks/statistics/"
 
     def setUp(self):
@@ -731,22 +730,17 @@ class StatisticsEndpointTests(TestCase):
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
-
+        
         # Test main sections per specification memory
         required_sections = [
-            "summary",
-            "charts_data",
-            "performance_metrics",
-            "team_analytics",
-            "client_insights",
-            "business_intelligence",
-            "quick_actions",
-            "metadata",
+            'summary', 'charts_data', 'performance_metrics',
+            'team_analytics', 'client_insights', 'business_intelligence',
+            'quick_actions', 'metadata'
         ]
-
+        
         for section in required_sections:
             self.assertIn(section, data, f"Missing required section: {section}")
 
@@ -755,39 +749,39 @@ class StatisticsEndpointTests(TestCase):
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
+        
         data = response.data
-        summary = data["summary"]
-
+        summary = data['summary']
+        
         # Test basic counts
-        self.assertEqual(summary["total"], 3)
-        self.assertEqual(summary["completed"], 1)
-        self.assertEqual(summary["in_progress"], 1)
-        self.assertEqual(summary["for_checking"], 1)
-
+        self.assertEqual(summary['total'], 3)
+        self.assertEqual(summary['completed'], 1)
+        self.assertEqual(summary['in_progress'], 1)
+        self.assertEqual(summary['for_checking'], 1)
+        
         # Test priority distribution
-        self.assertEqual(summary["high_priority"], 2)
-        self.assertEqual(summary["medium_priority"], 1)
-
+        self.assertEqual(summary['high_priority'], 2)
+        self.assertEqual(summary['medium_priority'], 1)
+        
         # Test overdue tasks
-        self.assertEqual(summary["overdue"], 1)
+        self.assertEqual(summary['overdue'], 1)
 
     def test_charts_data_structure(self):
         """Test charts data structure for visualization"""
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
-        charts_data = response.data["charts_data"]
-
+        
+        charts_data = response.data['charts_data']
+        
         # Test required chart data sections
-        self.assertIn("category_distribution", charts_data)
-        self.assertIn("weekly_trends", charts_data)
-        self.assertIn("status_breakdown", charts_data)
-        self.assertIn("priority_breakdown", charts_data)
-
+        self.assertIn('category_distribution', charts_data)
+        self.assertIn('weekly_trends', charts_data)
+        self.assertIn('status_breakdown', charts_data)
+        self.assertIn('priority_breakdown', charts_data)
+        
         # Test weekly trends structure
-        weekly_trends = charts_data["weekly_trends"]
+        weekly_trends = charts_data['weekly_trends']
         self.assertIsInstance(weekly_trends, list)
         self.assertEqual(len(weekly_trends), 8)  # 8 weeks of data
 
@@ -796,17 +790,15 @@ class StatisticsEndpointTests(TestCase):
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
-        performance = response.data["performance_metrics"]
-
+        
+        performance = response.data['performance_metrics']
+        
         # Test required calculated metrics per specification
         required_metrics = [
-            "overall_completion_rate",
-            "on_time_completion_rate",
-            "workload_balance_score",
-            "average_completion_days",
+            'overall_completion_rate', 'on_time_completion_rate',
+            'workload_balance_score', 'average_completion_days'
         ]
-
+        
         for metric in required_metrics:
             self.assertIn(metric, performance)
             self.assertIsInstance(performance[metric], (int, float))
@@ -816,20 +808,20 @@ class StatisticsEndpointTests(TestCase):
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
-        bi_data = response.data["business_intelligence"]
-
+        
+        bi_data = response.data['business_intelligence']
+        
         # Test approval workflow tracking
-        self.assertIn("approval_workflow", bi_data)
-        approval = bi_data["approval_workflow"]
-        self.assertEqual(approval["pending_my_approval"], 1)  # Admin has 1 pending
-
+        self.assertIn('approval_workflow', bi_data)
+        approval = bi_data['approval_workflow']
+        self.assertEqual(approval['pending_my_approval'], 1)  # Admin has 1 pending
+        
         # Test tax analysis
-        self.assertIn("tax_analysis", bi_data)
-        tax_analysis = bi_data["tax_analysis"]
+        self.assertIn('tax_analysis', bi_data)
+        tax_analysis = bi_data['tax_analysis']
         if tax_analysis:
-            self.assertIn("tax_payable_total", tax_analysis)
-            self.assertEqual(tax_analysis["tax_payable_total"], 50000.0)
+            self.assertIn('tax_payable_total', tax_analysis)
+            self.assertEqual(tax_analysis['tax_payable_total'], 50000.0)
 
     def test_role_based_data_filtering(self):
         """Test data filtering based on user role"""
@@ -837,76 +829,71 @@ class StatisticsEndpointTests(TestCase):
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
+        
         admin_data = response.data
-        self.assertEqual(admin_data["summary"]["total"], 3)
-        self.assertEqual(admin_data["metadata"]["data_scope"], "all_tasks")
-
+        self.assertEqual(admin_data['summary']['total'], 3)
+        self.assertEqual(admin_data['metadata']['data_scope'], 'all_tasks')
+        
         # Test staff sees only assigned tasks
         self._authenticate_user(self.staff_user)
         response = self.api_client.get(url)
-
+        
         staff_data = response.data
         staff_task_count = Task.objects.filter(assigned_to=self.staff_user).count()
-        self.assertEqual(staff_data["summary"]["total"], staff_task_count)
-        self.assertEqual(staff_data["metadata"]["data_scope"], "assigned_tasks")
+        self.assertEqual(staff_data['summary']['total'], staff_task_count)
+        self.assertEqual(staff_data['metadata']['data_scope'], 'assigned_tasks')
 
     def test_metadata_information(self):
         """Test metadata for dashboard functionality"""
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
-        metadata = response.data["metadata"]
-
+        
+        metadata = response.data['metadata']
+        
         # Test required metadata fields per specification
-        required_fields = ["generated_at", "user_role", "is_admin", "data_scope"]
+        required_fields = ['generated_at', 'user_role', 'is_admin', 'data_scope']
         for field in required_fields:
             self.assertIn(field, metadata)
-
+        
         # Test metadata values
-        self.assertEqual(metadata["user_role"], UserRoles.ADMIN)
-        self.assertTrue(metadata["is_admin"])
-        self.assertEqual(metadata["generated_at"], self.today.isoformat())
+        self.assertEqual(metadata['user_role'], UserRoles.ADMIN)
+        self.assertTrue(metadata['is_admin'])
+        self.assertEqual(metadata['generated_at'], self.today.isoformat())
 
     def test_error_handling(self):
         """Test robust error handling with edge cases"""
         # Store original task count
         original_task_count = Task.objects.count()
-
+        
         # Test with empty database
         Task.objects.all().delete()
-
+        
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
         response = self.api_client.get(url)
-
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
-
+        
         # Should still have all required sections
         required_sections = [
-            "summary",
-            "charts_data",
-            "performance_metrics",
-            "team_analytics",
-            "client_insights",
-            "business_intelligence",
-            "quick_actions",
-            "metadata",
+            'summary', 'charts_data', 'performance_metrics',
+            'team_analytics', 'client_insights', 'business_intelligence',
+            'quick_actions', 'metadata'
         ]
-
+        
         for section in required_sections:
             self.assertIn(section, data)
-
+        
         # Summary should have zero counts
-        self.assertEqual(data["summary"]["total"], 0)
+        self.assertEqual(data['summary']['total'], 0)
 
     def test_field_name_verification(self):
         """Test correct model field names to avoid FieldError"""
         self._authenticate_user(self.admin_user)
         url = self.STATISTICS_URL
-
+        
         # Should not raise any FieldError exceptions
         try:
             response = self.api_client.get(url)
