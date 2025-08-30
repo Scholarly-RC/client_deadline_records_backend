@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from core.models import (
     AppLog,
     Client,
+    ClientDocument,
     Notification,
     Task,
     TaskApproval,
@@ -138,9 +139,28 @@ class TaskAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related("client", "assigned_to")
 
 
+class ClientDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "client",
+        "uploaded_by",
+        "file_size",
+        "file_extension",
+        "uploaded_at",
+    )
+    list_filter = ("uploaded_at", "client", "uploaded_by")
+    search_fields = ("title", "description", "client__name", "uploaded_by__username")
+    readonly_fields = ("uploaded_at", "updated_at", "file_size", "file_extension")
+    ordering = ("-uploaded_at",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("client", "uploaded_by")
+
+
 # Register your models here.
 admin.site.register(AppLog)
 admin.site.register(Client)
+admin.site.register(ClientDocument, ClientDocumentAdmin)
 admin.site.register(Notification)
 admin.site.register(Task, TaskAdmin)
 admin.site.register(TaskApproval, TaskApprovalAdmin)

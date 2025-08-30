@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from core.views import (
     AppLogViewSet,
+    ClientDocumentViewSet,
     ClientViewSet,
     NotificationViewSet,
     TaskViewSet,
@@ -14,6 +15,7 @@ app_name = "api"
 router = DefaultRouter()
 router.register(r"users", UserViewSet)
 router.register(r"clients", ClientViewSet)
+router.register(r"client-documents", ClientDocumentViewSet)
 router.register(r"notifications", NotificationViewSet)
 router.register(r"app-logs", AppLogViewSet)
 router.register(r"tasks", TaskViewSet)

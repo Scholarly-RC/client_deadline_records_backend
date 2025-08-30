@@ -9,6 +9,7 @@ from core.choices import TaskStatus
 from core.models import (
     AppLog,
     Client,
+    ClientDocument,
     Notification,
     Task,
     TaskApproval,
@@ -498,3 +499,58 @@ class ProcessApprovalSerializer(serializers.Serializer):
                     "Next approver must be a valid admin user."
                 )
         return None
+
+
+class ClientDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for ClientDocument model"""
+
+    client_name = serializers.CharField(source="client.name", read_only=True)
+    uploaded_by_name = serializers.CharField(
+        source="uploaded_by.get_full_name", read_only=True
+    )
+    file_size = serializers.SerializerMethodField()
+    file_extension = serializers.SerializerMethodField()
+    uploaded_at = serializers.DateTimeField(
+        format="%Y-%m-%d %I:%M %p", read_only=True
+    )
+    updated_at = serializers.DateTimeField(
+        format="%Y-%m-%d %I:%M %p", read_only=True
+    )
+    deleted_at = serializers.DateTimeField(
+        format="%Y-%m-%d %I:%M %p", read_only=True
+    )
+
+    class Meta:
+        model = ClientDocument
+        fields = [
+            "id",
+            "client",
+            "client_name",
+            "title",
+            "description",
+            "document_file",
+            "uploaded_by",
+            "uploaded_by_name",
+            "file_size",
+            "file_extension",
+            "uploaded_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
+        read_only_fields = ["id", "uploaded_at", "updated_at", "uploaded_by", "is_deleted", "deleted_at"]
+
+    @extend_schema_field(serializers.CharField)
+    def get_file_size(self, obj) -> str:
+        """Return file size in human readable format"""
+        return obj.file_size
+
+    @extend_schema_field(serializers.CharField)
+    def get_file_extension(self, obj) -> str:
+        """Return file extension"""
+        return obj.file_extension
+
+    def create(self, validated_data):
+        """Set the uploaded_by field to the current user"""
+        validated_data["uploaded_by"] = self.context["request"].user
+        return super().create(validated_data)

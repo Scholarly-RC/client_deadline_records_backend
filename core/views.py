@@ -23,6 +23,7 @@ from core.choices import TaskStatus
 from core.models import (
     AppLog,
     Client,
+    ClientDocument,
     Notification,
     Task,
     TaskApproval,
@@ -33,6 +34,7 @@ from core.pagination import CustomPageNumberPagination
 from core.serializers import (
     AppLogSerializer,
     ClientBirthdaySerializer,
+    ClientDocumentSerializer,
     ClientSerializer,
     InitiateApprovalSerializer,
     NotificationSerializer,
@@ -1012,3 +1014,243 @@ class AppLogViewSet(viewsets.ModelViewSet):
         users = User.objects.exclude(logs__isnull=True)
         serializer = UserMiniSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ClientDocumentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing ClientDocument records
+
+    Provides CRUD operations for client documents with file upload capabilities.
+    """
+    queryset = ClientDocument.objects.select_related("client", "uploaded_by")
+    serializer_class = ClientDocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    # Filtering options
+    filterset_fields = {
+        "client": ["exact"],
+        "uploaded_by": ["exact"],
+        "uploaded_at": ["gte", "lte", "exact"],
+    }
+
+    # Search fields
+    search_fields = [
+        "title",
+        "description",
+        "client__name",
+        "uploaded_by__first_name",
+        "uploaded_by__last_name",
+    ]
+
+    # Ordering options
+    ordering_fields = [
+        "title",
+        "uploaded_at",
+        "updated_at",
+        "client__name",
+    ]
+    ordering = ["-uploaded_at"]
+
+    def get_queryset(self):
+        """
+        Filter queryset based on user permissions.
+        Admin users see all documents, non-admin users only see documents for clients they created.
+        By default, excludes soft-deleted documents.
+        """
+        queryset = ClientDocument.objects.select_related("client", "uploaded_by")
+
+        if not self.request.user.is_authenticated:
+            return queryset.none()
+
+        # Filter out soft-deleted documents by default
+        queryset = queryset.filter(is_deleted=False)
+
+        if self.request.user.is_admin:
+            return queryset
+
+        # Non-admin users can only see documents for clients they created
+        return queryset.filter(client__created_by=self.request.user)
+
+    def perform_create(self, serializer):
+        """Create document and log the action"""
+        instance = serializer.save()
+        create_log(
+            self.request.user,
+            f"Uploaded document '{instance.title}' for client {instance.client.name}.",
+        )
+
+    def perform_update(self, serializer):
+        """Update document and log the action"""
+        instance = serializer.save()
+        create_log(
+            self.request.user,
+            f"Updated document '{instance.title}' for client {instance.client.name}.",
+        )
+
+    def perform_destroy(self, instance):
+        """Soft delete document and log the action"""
+        client_name = instance.client.name
+        document_title = instance.title
+
+        # Perform soft delete
+        success = instance.soft_delete()
+
+        if success:
+            create_log(
+                self.request.user,
+                f"Soft deleted document '{document_title}' for client {client_name}.",
+            )
+        else:
+            create_log(
+                self.request.user,
+                f"Soft deleted document '{document_title}' for client {client_name} (file move failed).",
+            )
+
+    @action(detail=False, methods=["get"], url_path="by-client")
+    def get_documents_by_client(self, request):
+        """Get all documents for a specific client"""
+        client_id = request.query_params.get("client_id")
+        if not client_id:
+            return Response(
+                {"error": "client_id parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return Response(
+                {"error": "Client not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Check permissions
+        if not request.user.is_admin and client.created_by != request.user:
+            return Response(
+                {"error": "You don't have permission to view documents for this client"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        documents = self.get_queryset().filter(client=client)
+        serializer = self.get_serializer(documents, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="download")
+    def download_document(self, request, pk=None):
+        """Download a specific document"""
+        document = self.get_object()
+
+        # Check permissions
+        if not request.user.is_admin and document.client.created_by != request.user:
+            return Response(
+                {"error": "You don't have permission to download this document"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if file exists in storage
+        if not document.document_file or not document.document_file.storage.exists(document.document_file.name):
+            return Response(
+                {"error": "File not found in storage. The file may have been moved or deleted."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            file_handle = document.document_file.open()
+            response = FileResponse(
+                file_handle,
+                content_type="application/octet-stream",
+            )
+            filename = document.document_file.name.split("/")[-1] if document.document_file.name else "download"
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            return Response(
+                {"error": f"Error downloading file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=["get"], url_path="deleted")
+    def get_deleted_documents(self, request):
+        """Get all soft-deleted documents (admin only)"""
+        if not request.user.is_admin:
+            return Response(
+                {"error": "Only admin users can view deleted documents"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        deleted_docs = ClientDocument.objects.filter(
+            is_deleted=True
+        ).select_related("client", "uploaded_by")
+
+        serializer = self.get_serializer(deleted_docs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore_document(self, request, pk=None):
+        """Restore a soft-deleted document"""
+        document = self.get_object()
+
+        # Check if document is actually deleted
+        if not document.is_deleted:
+            return Response(
+                {"error": "Document is not deleted"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check permissions
+        if not request.user.is_admin and document.client.created_by != request.user:
+            return Response(
+                {"error": "You don't have permission to restore this document"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        success = document.restore()
+
+        if success:
+            create_log(
+                request.user,
+                f"Restored document '{document.title}' for client {document.client.name}.",
+            )
+            serializer = self.get_serializer(document)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {"error": "Failed to restore document"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=["delete"], url_path="hard-delete")
+    def hard_delete_document(self, request, pk=None):
+        """Permanently delete a document and its file (admin only)"""
+        if not request.user.is_admin:
+            return Response(
+                {"error": "Only admin users can permanently delete documents"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        document = self.get_object()
+
+        # Check permissions
+        if not request.user.is_admin and document.client.created_by != request.user:
+            return Response(
+                {"error": "You don't have permission to delete this document"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        client_name = document.client.name
+        document_title = document.title
+
+        # Perform hard delete
+        document.hard_delete()
+
+        create_log(
+            request.user,
+            f"Permanently deleted document '{document_title}' for client {client_name}.",
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
