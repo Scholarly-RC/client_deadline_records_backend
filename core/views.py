@@ -1159,6 +1159,10 @@ class ClientViewSet(viewsets.ModelViewSet):
         past_birthdays = []
 
         for client in all_clients:
+            # Skip clients without birth date
+            if not client.date_of_birth:
+                continue
+
             birth_month = client.date_of_birth.month
             birth_day = client.date_of_birth.day
 
