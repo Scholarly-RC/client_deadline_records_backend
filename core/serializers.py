@@ -1,9 +1,9 @@
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import User
-from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from typing import Dict, List, Any, Optional
+from rest_framework import serializers
 
 from core.choices import TaskStatus
 from core.models import (
@@ -26,7 +26,7 @@ from core.utils import get_today_local
 class UserMiniSerializer(serializers.ModelSerializer):
     fullname = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = [
@@ -37,12 +37,12 @@ class UserMiniSerializer(serializers.ModelSerializer):
             "fullname",
             "is_admin",
         ]
-    
+
     @extend_schema_field(serializers.CharField)
     def get_fullname(self, obj) -> str:
         """Return formatted full name"""
         return obj.fullname
-    
+
     @extend_schema_field(serializers.BooleanField)
     def get_is_admin(self, obj) -> bool:
         """Return whether user is admin"""
@@ -84,17 +84,17 @@ class UserSerializer(serializers.ModelSerializer):
             "is_admin",
             "has_logs",
         ]
-    
+
     @extend_schema_field(serializers.CharField)
     def get_fullname(self, obj) -> str:
         """Return formatted full name"""
         return obj.fullname
-    
+
     @extend_schema_field(serializers.BooleanField)
     def get_is_admin(self, obj) -> bool:
         """Return whether user is admin"""
         return obj.is_admin
-    
+
     @extend_schema_field(serializers.BooleanField)
     def get_has_logs(self, obj) -> bool:
         """Return whether user has logs"""
@@ -217,7 +217,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "pending_approver",
         ]
         read_only_fields = ["id", "last_update"]
-    
+
     @extend_schema_field(serializers.DictField)
     def get_category_specific_fields(self, obj) -> Dict[str, Any]:
         """Return category-specific fields for the task"""
@@ -306,7 +306,7 @@ class TaskListSerializer(serializers.ModelSerializer):
         if obj.deadline:
             return (obj.deadline - get_today_local()).days
         return None
-    
+
     @extend_schema_field(serializers.DictField)
     def get_category_specific_fields(self, obj) -> Dict[str, Any]:
         """Return category-specific fields for the task"""
@@ -510,15 +510,9 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
     )
     file_size = serializers.SerializerMethodField()
     file_extension = serializers.SerializerMethodField()
-    uploaded_at = serializers.DateTimeField(
-        format="%Y-%m-%d %I:%M %p", read_only=True
-    )
-    updated_at = serializers.DateTimeField(
-        format="%Y-%m-%d %I:%M %p", read_only=True
-    )
-    deleted_at = serializers.DateTimeField(
-        format="%Y-%m-%d %I:%M %p", read_only=True
-    )
+    uploaded_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+    updated_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+    deleted_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
 
     class Meta:
         model = ClientDocument
@@ -538,7 +532,14 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
             "is_deleted",
             "deleted_at",
         ]
-        read_only_fields = ["id", "uploaded_at", "updated_at", "uploaded_by", "is_deleted", "deleted_at"]
+        read_only_fields = [
+            "id",
+            "uploaded_at",
+            "updated_at",
+            "uploaded_by",
+            "is_deleted",
+            "deleted_at",
+        ]
 
     @extend_schema_field(serializers.CharField)
     def get_file_size(self, obj) -> str:

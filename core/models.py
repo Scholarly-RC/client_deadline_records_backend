@@ -276,9 +276,11 @@ class Task(models.Model):
             change_type: Type of change (manual, approval, system)
             related_approval: TaskApproval instance if this is approval-related
             force_history: If True, creates status history even if status doesn't change
-                          (useful for approval workflows where multiple approvers
-                          handle the same status)
+                           (useful for approval workflows where multiple approvers
+                           handle the same status)
         """
+        from core.actions import create_log
+
         old_status = self.status
 
         # Create status history entry if status changed OR if forced (for approval workflows)
@@ -310,6 +312,17 @@ class Task(models.Model):
                 update_fields.append("remarks")
 
             self.save(update_fields=update_fields)
+
+            # Log the status change
+            if changed_by:
+                from core.actions import create_log
+
+                old_status_display = self.get_status_display() if old_status else "New"
+                new_status_display = self.get_status_display()
+                log_message = f"Task status changed: '{self.description}' from {old_status_display} to {new_status_display}"
+                if remarks:
+                    log_message += f" - {remarks}"
+                create_log(changed_by, log_message)
         else:
             # If status didn't change and no force_history, still update remarks if provided
             if remarks and remarks.strip():
@@ -525,14 +538,20 @@ class ClientDocument(models.Model):
 
             # Generate new path for deleted file
             original_path = self.document_file.name or ""
-            filename = original_path.split('/')[-1] if original_path and '/' in original_path else (original_path or "unknown_file")
-            deleted_path = f"deleted/{timezone.now().strftime('%Y/%m/%d')}/{self.pk}_{filename}"
+            filename = (
+                original_path.split("/")[-1]
+                if original_path and "/" in original_path
+                else (original_path or "unknown_file")
+            )
+            deleted_path = (
+                f"deleted/{timezone.now().strftime('%Y/%m/%d')}/{self.pk}_{filename}"
+            )
 
             try:
                 # Check if file exists before attempting to move
                 if original_path and default_storage.exists(original_path):
                     # Read the original file
-                    with default_storage.open(original_path, 'rb') as old_file:
+                    with default_storage.open(original_path, "rb") as old_file:
                         file_content = old_file.read()
 
                     # Save to new location
@@ -545,21 +564,23 @@ class ClientDocument(models.Model):
                     self.document_file.name = deleted_path
                     self.is_deleted = True
                     self.deleted_at = timezone.now()
-                    self.save(update_fields=['document_file', 'is_deleted', 'deleted_at'])
+                    self.save(
+                        update_fields=["document_file", "is_deleted", "deleted_at"]
+                    )
 
                     return True
                 else:
                     # File doesn't exist, just mark as deleted
                     self.is_deleted = True
                     self.deleted_at = timezone.now()
-                    self.save(update_fields=['is_deleted', 'deleted_at'])
+                    self.save(update_fields=["is_deleted", "deleted_at"])
                     return True
 
             except Exception as e:
                 # If moving fails, still mark as deleted but keep original path
                 self.is_deleted = True
                 self.deleted_at = timezone.now()
-                self.save(update_fields=['is_deleted', 'deleted_at'])
+                self.save(update_fields=["is_deleted", "deleted_at"])
                 return False
 
         return True
@@ -567,8 +588,11 @@ class ClientDocument(models.Model):
     def file_exists(self):
         """Check if the file exists in storage"""
         try:
-            return bool(self.document_file and self.document_file.name and
-                       self.document_file.storage.exists(self.document_file.name))
+            return bool(
+                self.document_file
+                and self.document_file.name
+                and self.document_file.storage.exists(self.document_file.name)
+            )
         except Exception:
             return False
 
@@ -580,10 +604,12 @@ class ClientDocument(models.Model):
 
             # Generate original path
             deleted_path = self.document_file.name or ""
-            if deleted_path and '/' in deleted_path:
-                filename_with_id = deleted_path.split('/')[-1]
-                if '_' in filename_with_id:
-                    original_filename = filename_with_id.split('_', 1)[-1]  # Remove ID prefix
+            if deleted_path and "/" in deleted_path:
+                filename_with_id = deleted_path.split("/")[-1]
+                if "_" in filename_with_id:
+                    original_filename = filename_with_id.split("_", 1)[
+                        -1
+                    ]  # Remove ID prefix
                 else:
                     original_filename = filename_with_id
             else:
@@ -594,7 +620,7 @@ class ClientDocument(models.Model):
                 # Check if file exists in deleted location before attempting to move
                 if deleted_path and default_storage.exists(deleted_path):
                     # Read the deleted file
-                    with default_storage.open(deleted_path, 'rb') as deleted_file:
+                    with default_storage.open(deleted_path, "rb") as deleted_file:
                         file_content = deleted_file.read()
 
                     # Save to original location
@@ -607,7 +633,9 @@ class ClientDocument(models.Model):
                     self.document_file.name = original_path
                     self.is_deleted = False
                     self.deleted_at = None
-                    self.save(update_fields=['document_file', 'is_deleted', 'deleted_at'])
+                    self.save(
+                        update_fields=["document_file", "is_deleted", "deleted_at"]
+                    )
 
                     return True
                 else:
@@ -615,14 +643,16 @@ class ClientDocument(models.Model):
                     self.document_file.name = original_path
                     self.is_deleted = False
                     self.deleted_at = None
-                    self.save(update_fields=['document_file', 'is_deleted', 'deleted_at'])
+                    self.save(
+                        update_fields=["document_file", "is_deleted", "deleted_at"]
+                    )
                     return True
 
             except Exception as e:
                 # If restoring fails, still mark as restored
                 self.is_deleted = False
                 self.deleted_at = None
-                self.save(update_fields=['is_deleted', 'deleted_at'])
+                self.save(update_fields=["is_deleted", "deleted_at"])
                 return False
 
         return True
@@ -637,10 +667,14 @@ class ClientDocument(models.Model):
     def file_size(self):
         """Return file size in human readable format"""
         try:
-            if self.document_file and self.document_file.name and self.document_file.storage.exists(self.document_file.name):
+            if (
+                self.document_file
+                and self.document_file.name
+                and self.document_file.storage.exists(self.document_file.name)
+            ):
                 size = self.document_file.size
                 if size:
-                    for unit in ['B', 'KB', 'MB', 'GB']:
+                    for unit in ["B", "KB", "MB", "GB"]:
                         if size < 1024.0:
                             return f"{size:.1f} {unit}"
                         size /= 1024.0
@@ -653,7 +687,7 @@ class ClientDocument(models.Model):
         """Return file extension"""
         try:
             if self.document_file and self.document_file.name:
-                name_parts = self.document_file.name.split('.')
+                name_parts = self.document_file.name.split(".")
                 if len(name_parts) > 1:
                     return name_parts[-1].upper()
             return "Unknown"
@@ -669,7 +703,8 @@ class AppLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.fullname} - {self.details[:50]} - {self.created_at.date()}"
+        user_name = self.user.fullname if self.user else "No User"
+        return f"{user_name} - {self.details[:50]} - {self.created_at.date()}"
 
     class Meta:
         ordering = ["-created_at"]

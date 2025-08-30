@@ -11,27 +11,31 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Function to detect if we're running tests
 def is_running_tests():
     """Check if Django is running tests"""
     # Check for Django test runner
-    if 'test' in sys.argv and len(sys.argv) > 1:
+    if "test" in sys.argv and len(sys.argv) > 1:
         return True
 
     # Check for pytest
-    if 'pytest' in sys.argv[0] if sys.argv else False:
+    if "pytest" in sys.argv[0] if sys.argv else False:
         return True
 
     # Check for Django's test settings module
-    settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
-    if 'test' in settings_module:
+    settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+    if "test" in settings_module:
         return True
 
     # Check for specific test-related environment variables
-    if os.environ.get('PYTEST_CURRENT_TEST') or os.environ.get('PYTEST_DISABLE_PLUGIN_AUTOLOAD'):
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get(
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD"
+    ):
         return True
 
     return False
+
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
@@ -140,14 +144,11 @@ R2_REGION_NAME = os.getenv("R2_REGION_NAME", "auto")
 # NEVER use R2 during testing - always use local storage for tests
 if is_running_tests():
     # Force local storage during tests
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
     print("🧪 TEST MODE: Using local file storage (R2 disabled for testing)")
-elif os.getenv("USE_R2_STORAGE", "False").lower() == "true" and all([
-    R2_ACCESS_KEY_ID,
-    R2_SECRET_ACCESS_KEY,
-    R2_BUCKET_NAME,
-    R2_ENDPOINT_URL
-]):
+elif os.getenv("USE_R2_STORAGE", "False").lower() == "true" and all(
+    [R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_ENDPOINT_URL]
+):
     # Production: Use Cloudflare R2
     AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
     AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
@@ -155,23 +156,24 @@ elif os.getenv("USE_R2_STORAGE", "False").lower() == "true" and all([
     AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
     AWS_S3_REGION_NAME = R2_REGION_NAME
     AWS_S3_CUSTOM_DOMAIN = None
-    AWS_DEFAULT_ACL = 'public-read'
+    AWS_DEFAULT_ACL = "public-read"
     AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
+        "CacheControl": "max-age=86400",
     }
 
     # Use S3 storage for client documents
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
     # Force the storage to be properly initialized
-    from storages.backends.s3boto3 import S3Boto3Storage
     import django.core.files.storage
+    from storages.backends.s3boto3 import S3Boto3Storage
+
     django.core.files.storage.default_storage = S3Boto3Storage()
 
     print("☁️ PRODUCTION MODE: Using Cloudflare R2 storage")
 else:
     # Development: Use default Django storage
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
     print("💻 DEVELOPMENT MODE: Using local file storage")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
