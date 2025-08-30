@@ -381,6 +381,54 @@ class TaskViewSet(viewsets.ModelViewSet):
         )
 
         queryset = self.get_queryset()
+
+        # Parse and validate date range filter parameters
+        start_date_param = request.query_params.get("start_date")
+        end_date_param = request.query_params.get("end_date")
+        filters_applied = {}
+        start_date = None
+        end_date = None
+
+        if start_date_param or end_date_param:
+            try:
+                from datetime import datetime
+
+                # Validate start_date parameter
+                if start_date_param:
+                    start_date = datetime.strptime(start_date_param, "%Y-%m-%d").date()
+                    filters_applied["start_date"] = start_date_param
+
+                # Validate end_date parameter
+                if end_date_param:
+                    end_date = datetime.strptime(end_date_param, "%Y-%m-%d").date()
+                    filters_applied["end_date"] = end_date_param
+
+                # Validate date range logic
+                if start_date and end_date and start_date > end_date:
+                    return Response(
+                        {"error": "start_date cannot be after end_date"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Apply filtering based on last_update field
+                if start_date and end_date:
+                    # Filter by date range
+                    queryset = queryset.filter(
+                        last_update__date__range=[start_date, end_date]
+                    )
+                elif start_date:
+                    # Filter from start_date onwards
+                    queryset = queryset.filter(last_update__date__gte=start_date)
+                elif end_date:
+                    # Filter up to end_date
+                    queryset = queryset.filter(last_update__date__lte=end_date)
+
+            except ValueError:
+                return Response(
+                    {"error": "Invalid date format. Use YYYY-MM-DD format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         today = get_today_local()
         week_ago = today - timedelta(days=7)
         month_ago = today - timedelta(days=30)
@@ -881,6 +929,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 "data_scope": (
                     "all_tasks" if request.user.is_admin else "assigned_tasks"
                 ),
+                "filters_applied": filters_applied,
             },
         }
 
@@ -1080,6 +1129,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrStaff]
     filter_backends = [
         DjangoFilterBackend,
+        filters.SearchFilter,
         filters.OrderingFilter,
     ]
     search_fields = ["name", "contact_person", "email", "address", "phone"]
