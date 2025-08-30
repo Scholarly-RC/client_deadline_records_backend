@@ -1150,28 +1150,26 @@ class ClientViewSet(viewsets.ModelViewSet):
         current_month = today.month
         current_day = today.day
 
-        # Get birthdays from current month and next month (for end-of-month cases)
-        from django.db.models import Q
-        monthly_birthdays = self.get_queryset().filter(
-            Q(date_of_birth__month=current_month) | Q(date_of_birth__month=((current_month % 12) + 1))
-        )
+        # Get all clients (we'll filter by month/day comparison)
+        all_clients = self.get_queryset()
 
-        # Categorize by comparing month and day
+        # Categorize by comparing only month and day (ignore year)
         birthdays_today = []
         upcoming_birthdays = []
         past_birthdays = []
 
-        for client in monthly_birthdays:
+        for client in all_clients:
             birth_month = client.date_of_birth.month
             birth_day = client.date_of_birth.day
 
-            # Check if it's today's birthday
-            if birth_month == current_month and birth_day == current_day:
+            # Create comparable values for this year
+            current_date_value = current_month * 100 + current_day
+            birth_date_value = birth_month * 100 + birth_day
+
+            if birth_date_value == current_date_value:
                 birthdays_today.append(client)
-            # Check if it's upcoming (same month, later day OR next month)
-            elif (birth_month == current_month and birth_day > current_day) or birth_month > current_month:
+            elif birth_date_value > current_date_value:
                 upcoming_birthdays.append(client)
-            # Otherwise it's past
             else:
                 past_birthdays.append(client)
 
