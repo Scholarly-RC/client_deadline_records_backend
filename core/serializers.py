@@ -355,7 +355,20 @@ class ClientBirthdaySerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
     def get_days_remaining(self, obj):
-        return (obj.date_of_birth - get_today_local()).days
+        today = get_today_local()
+        birth_date = obj.date_of_birth
+
+        # Create this year's birthday date
+        this_year_birthday = birth_date.replace(year=today.year)
+
+        if this_year_birthday < today:
+            # Birthday already passed this year, calculate for next year
+            next_birthday = birth_date.replace(year=today.year + 1)
+        else:
+            # Birthday hasn't passed this year yet
+            next_birthday = this_year_birthday
+
+        return (next_birthday - today).days
 
 
 class NotificationSerializer(serializers.ModelSerializer):

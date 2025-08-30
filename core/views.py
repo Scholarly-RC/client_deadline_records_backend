@@ -1149,11 +1149,24 @@ class ClientViewSet(viewsets.ModelViewSet):
         today = get_today_local()
         month = today.month
 
+        # Get all clients with birthdays in current month
         monthly_birthdays = self.get_queryset().filter(date_of_birth__month=month)
 
-        birthdays_today = monthly_birthdays.filter(date_of_birth=today)
-        upcoming_birthdays = monthly_birthdays.filter(date_of_birth__gt=today)
-        past_birthdays = monthly_birthdays.filter(date_of_birth__lt=today)
+        # Categorize by comparing only month and day (ignore year)
+        birthdays_today = []
+        upcoming_birthdays = []
+        past_birthdays = []
+
+        for client in monthly_birthdays:
+            birth_day = client.date_of_birth.day
+            today_day = today.day
+
+            if birth_day == today_day:
+                birthdays_today.append(client)
+            elif birth_day > today_day:
+                upcoming_birthdays.append(client)
+            else:
+                past_birthdays.append(client)
 
         return Response(
             {
