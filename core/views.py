@@ -1166,16 +1166,26 @@ class ClientViewSet(viewsets.ModelViewSet):
             birth_month = client.date_of_birth.month
             birth_day = client.date_of_birth.day
 
-            # Create comparable values for this year
-            current_date_value = current_month * 100 + current_day
-            birth_date_value = birth_month * 100 + birth_day
-
-            if birth_date_value == current_date_value:
+            if birth_month == current_month and birth_day == current_day:
+                # Today's birthday
                 birthdays_today.append(client)
-            elif birth_date_value > current_date_value:
+            elif birth_month == current_month and birth_day > current_day:
+                # Later this month
                 upcoming_birthdays.append(client)
-            else:
+            elif birth_month == current_month and birth_day < current_day:
+                # Already passed this month
                 past_birthdays.append(client)
+            else:
+                # Different month (earlier or later in year) - upcoming for next occurrence
+                upcoming_birthdays.append(client)
+
+        # Sort each category by date (month and day)
+        def sort_by_birth_date(client):
+            return client.date_of_birth.month * 100 + client.date_of_birth.day
+
+        birthdays_today.sort(key=sort_by_birth_date)
+        upcoming_birthdays.sort(key=sort_by_birth_date)
+        past_birthdays.sort(key=sort_by_birth_date)
 
         return Response(
             {
