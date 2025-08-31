@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.db.models.deletion import RestrictedError
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, viewsets
@@ -934,6 +934,391 @@ class TaskViewSet(viewsets.ModelViewSet):
         }
 
         return Response(dashboard_stats)
+
+    @action(detail=False, methods=["post"], url_path="export-statistics")
+    def export_statistics(self, request):
+        """Export comprehensive task statistics to CSV or Excel format"""
+        import csv
+        from datetime import datetime, timedelta
+        from io import BytesIO
+
+        from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, When
+        from django.db.models.functions import Extract, TruncMonth
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+
+        from core.choices import (
+            TaskCategory,
+            TaskPriority,
+            TaskStatus,
+            TaxCaseCategory,
+            TypeOfTaxCase,
+        )
+
+        # Get format parameter from request data (default to csv)
+        export_format = request.data.get("format", "csv")
+        if isinstance(export_format, str):
+            export_format = export_format.lower().strip()
+        else:
+            export_format = "csv"
+
+        if not export_format or export_format not in ["csv", "excel"]:
+            return Response(
+                {"error": "Invalid format. Use 'csv' or 'excel'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Reuse the same queryset and filtering logic as statistics method
+        queryset = self.get_queryset()
+
+        # Parse and validate date range filter parameters
+        start_date_param = request.data.get("start_date")
+        end_date_param = request.data.get("end_date")
+
+        start_date = None
+        end_date = None
+
+        if start_date_param or end_date_param:
+            try:
+                if start_date_param:
+                    start_date = datetime.strptime(start_date_param, "%Y-%m-%d").date()
+                if end_date_param:
+                    end_date = datetime.strptime(end_date_param, "%Y-%m-%d").date()
+                if start_date and end_date and start_date > end_date:
+                    return Response(
+                        {"error": "start_date cannot be after end_date"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if start_date and end_date:
+                    queryset = queryset.filter(deadline__range=[start_date, end_date])
+                elif start_date:
+                    queryset = queryset.filter(deadline__gte=start_date)
+                elif end_date:
+                    queryset = queryset.filter(deadline__lte=end_date)
+            except ValueError:
+                return Response(
+                    {"error": "Invalid date format. Use YYYY-MM-DD format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        today = get_today_local()
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+
+        # Get basic statistics
+        basic_stats = {
+            "total": queryset.count(),
+            "completed": queryset.filter(status=TaskStatus.COMPLETED).count(),
+            "in_progress": queryset.filter(status=TaskStatus.ON_GOING).count(),
+            "pending": queryset.filter(status=TaskStatus.PENDING).count(),
+            "for_checking": queryset.filter(status=TaskStatus.FOR_CHECKING).count(),
+            "for_revision": queryset.filter(status=TaskStatus.FOR_REVISION).count(),
+            "not_started": queryset.filter(status=TaskStatus.NOT_YET_STARTED).count(),
+            "cancelled": queryset.filter(status=TaskStatus.CANCELLED).count(),
+        }
+
+        # Get user performance data
+        user_stats = (
+            queryset.values(
+                "assigned_to__first_name",
+                "assigned_to__last_name",
+                "assigned_to__id",
+                "assigned_to__role",
+            )
+            .annotate(
+                total_tasks=Count("id"),
+                completed_tasks=Count(
+                    Case(
+                        When(status=TaskStatus.COMPLETED, then=1),
+                        output_field=IntegerField(),
+                    )
+                ),
+                overdue_tasks=Count(
+                    Case(
+                        When(
+                            Q(deadline__lt=today)
+                            & Q(
+                                status__in=[
+                                    TaskStatus.NOT_YET_STARTED,
+                                    TaskStatus.ON_GOING,
+                                    TaskStatus.PENDING,
+                                ]
+                            ),
+                            then=1,
+                        ),
+                        output_field=IntegerField(),
+                    )
+                ),
+                pending_tasks=Count(
+                    Case(
+                        When(
+                            status__in=[
+                                TaskStatus.NOT_YET_STARTED,
+                                TaskStatus.ON_GOING,
+                                TaskStatus.PENDING,
+                            ],
+                            then=1,
+                        ),
+                        output_field=IntegerField(),
+                    )
+                ),
+            )
+            .order_by("-total_tasks")
+        )
+
+        # Add completion rate for users
+        for user in user_stats:
+            total = user["total_tasks"]
+            if total > 0:
+                user["completion_rate"] = round(
+                    (user["completed_tasks"] / total) * 100, 2
+                )
+                user["overdue_rate"] = round((user["overdue_tasks"] / total) * 100, 2)
+            else:
+                user["completion_rate"] = 0
+                user["overdue_rate"] = 0
+            user["fullname"] = (
+                f"{user['assigned_to__first_name']} {user['assigned_to__last_name']}"
+            )
+
+        # Get client statistics
+        client_stats = (
+            queryset.values("client__name", "client__id", "client__status")
+            .annotate(
+                total_tasks=Count("id"),
+                completed_tasks=Count(
+                    Case(
+                        When(status=TaskStatus.COMPLETED, then=1),
+                        output_field=IntegerField(),
+                    )
+                ),
+                overdue_tasks=Count(
+                    Case(
+                        When(
+                            Q(deadline__lt=today)
+                            & Q(
+                                status__in=[
+                                    TaskStatus.NOT_YET_STARTED,
+                                    TaskStatus.ON_GOING,
+                                    TaskStatus.PENDING,
+                                ]
+                            ),
+                            then=1,
+                        ),
+                        output_field=IntegerField(),
+                    )
+                ),
+                pending_tasks=Count(
+                    Case(
+                        When(
+                            status__in=[
+                                TaskStatus.NOT_YET_STARTED,
+                                TaskStatus.ON_GOING,
+                                TaskStatus.PENDING,
+                            ],
+                            then=1,
+                        ),
+                        output_field=IntegerField(),
+                    )
+                ),
+            )
+            .order_by("-total_tasks")[:50]  # Limit to top 50 for export
+        )
+
+        # Add completion rate for clients
+        for client in client_stats:
+            if client["total_tasks"] > 0:
+                client["completion_rate"] = round(
+                    (client["completed_tasks"] / client["total_tasks"]) * 100, 2
+                )
+            else:
+                client["completion_rate"] = 0
+
+        # Prepare data for export
+        if export_format == "csv":
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = (
+                'attachment; filename="task_statistics.csv"'
+            )
+            writer = csv.writer(response)
+
+            # Write summary statistics
+            writer.writerow(["Task Statistics Export"])
+            writer.writerow(["Generated on", today.strftime("%Y-%m-%d %H:%M:%S")])
+
+            # Add date range information if provided
+            if start_date or end_date:
+                if start_date and end_date:
+                    writer.writerow(
+                        [
+                            "Date Range",
+                            f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+                        ]
+                    )
+                elif start_date:
+                    writer.writerow(["Start Date", start_date.strftime("%Y-%m-%d")])
+                elif end_date:
+                    writer.writerow(["End Date", end_date.strftime("%Y-%m-%d")])
+                writer.writerow([])
+
+            # Basic stats
+            writer.writerow(["Summary Statistics"])
+            writer.writerow(["Metric", "Value"])
+            for key, value in basic_stats.items():
+                writer.writerow([key.replace("_", " ").title(), value])
+            writer.writerow([])
+
+            # User performance
+            writer.writerow(["User Performance"])
+            writer.writerow(
+                [
+                    "User",
+                    "Total Tasks",
+                    "Completed",
+                    "Pending",
+                    "Overdue",
+                    "Completion Rate (%)",
+                    "Overdue Rate (%)",
+                ]
+            )
+            for user in user_stats:
+                writer.writerow(
+                    [
+                        user["fullname"],
+                        user["total_tasks"],
+                        user["completed_tasks"],
+                        user["pending_tasks"],
+                        user["overdue_tasks"],
+                        user["completion_rate"],
+                        user["overdue_rate"],
+                    ]
+                )
+            writer.writerow([])
+
+            # Client statistics
+            writer.writerow(["Client Statistics"])
+            writer.writerow(
+                [
+                    "Client",
+                    "Total Tasks",
+                    "Completed",
+                    "Pending",
+                    "Overdue",
+                    "Completion Rate (%)",
+                ]
+            )
+            for client in client_stats:
+                writer.writerow(
+                    [
+                        client["client__name"],
+                        client["total_tasks"],
+                        client["completed_tasks"],
+                        client["pending_tasks"],
+                        client["overdue_tasks"],
+                        client["completion_rate"],
+                    ]
+                )
+
+        else:  # Excel format
+            wb = Workbook()
+            ws_summary = wb.active
+            if ws_summary:
+                ws_summary.title = "Summary"
+            ws_users = wb.create_sheet("User Performance")
+            ws_clients = wb.create_sheet("Client Statistics")
+
+            # Summary sheet
+            if ws_summary:
+                ws_summary["A1"] = "Task Statistics Export"
+                ws_summary["A2"] = (
+                    f"Generated on: {today.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+
+                # Add date range information if provided
+                row_num = 4
+                if start_date or end_date:
+                    if start_date and end_date:
+                        ws_summary[f"A{row_num}"] = (
+                            f"Date Range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+                        )
+                    elif start_date:
+                        ws_summary[f"A{row_num}"] = (
+                            f"Start Date: {start_date.strftime('%Y-%m-%d')}"
+                        )
+                    elif end_date:
+                        ws_summary[f"A{row_num}"] = (
+                            f"End Date: {end_date.strftime('%Y-%m-%d')}"
+                        )
+                    row_num += 1
+
+                ws_summary[f"A{row_num}"] = "Summary Statistics"
+                ws_summary[f"A{row_num + 1}"] = "Metric"
+                ws_summary[f"B{row_num + 1}"] = "Value"
+
+                row = row_num + 2
+                for key, value in basic_stats.items():
+                    ws_summary[f"A{row}"] = key.replace("_", " ").title()
+                    ws_summary[f"B{row}"] = value
+                    row += 1
+
+            # User performance sheet
+            ws_users["A1"] = "User Performance"
+            headers = [
+                "User",
+                "Total Tasks",
+                "Completed",
+                "Pending",
+                "Overdue",
+                "Completion Rate (%)",
+                "Overdue Rate (%)",
+            ]
+            for col, header in enumerate(headers, 1):
+                ws_users.cell(row=1, column=col, value=header)
+
+            for row, user in enumerate(user_stats, 2):
+                ws_users.cell(row=row, column=1, value=user["fullname"])
+                ws_users.cell(row=row, column=2, value=user["total_tasks"])
+                ws_users.cell(row=row, column=3, value=user["completed_tasks"])
+                ws_users.cell(row=row, column=4, value=user["pending_tasks"])
+                ws_users.cell(row=row, column=5, value=user["overdue_tasks"])
+                ws_users.cell(row=row, column=6, value=user["completion_rate"])
+                ws_users.cell(row=row, column=7, value=user["overdue_rate"])
+
+            # Client statistics sheet
+            ws_clients["A1"] = "Client Statistics"
+            headers = [
+                "Client",
+                "Total Tasks",
+                "Completed",
+                "Pending",
+                "Overdue",
+                "Completion Rate (%)",
+            ]
+            for col, header in enumerate(headers, 1):
+                ws_clients.cell(row=1, column=col, value=header)
+
+            for row, client in enumerate(client_stats, 2):
+                ws_clients.cell(row=row, column=1, value=client["client__name"])
+                ws_clients.cell(row=row, column=2, value=client["total_tasks"])
+                ws_clients.cell(row=row, column=3, value=client["completed_tasks"])
+                ws_clients.cell(row=row, column=4, value=client["pending_tasks"])
+                ws_clients.cell(row=row, column=5, value=client["overdue_tasks"])
+                ws_clients.cell(row=row, column=6, value=client["completion_rate"])
+
+            # Save to response
+            buffer = BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = (
+                'attachment; filename="task_statistics.xlsx"'
+            )
+
+        return response
 
     @action(detail=True, methods=["POST"], url_path="update-deadline")
     def update_deadline(self, request, pk=None):
