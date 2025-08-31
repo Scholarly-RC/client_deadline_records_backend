@@ -1163,21 +1163,34 @@ class ClientViewSet(viewsets.ModelViewSet):
             if not client.date_of_birth:
                 continue
 
-            birth_month = client.date_of_birth.month
-            birth_day = client.date_of_birth.day
+            # Calculate days until birthday (handling year wrap-around)
+            try:
+                # Create this year's birthday date
+                this_year_birthday = client.date_of_birth.replace(year=today.year)
 
-            if birth_month == current_month and birth_day == current_day:
-                # Today's birthday
-                birthdays_today.append(client)
-            elif birth_month == current_month and birth_day > current_day:
-                # Later this month
-                upcoming_birthdays.append(client)
-            elif birth_month == current_month and birth_day < current_day:
-                # Already passed this month
-                past_birthdays.append(client)
-            else:
-                # Different month (earlier or later in year) - upcoming for next occurrence
-                upcoming_birthdays.append(client)
+                # If birthday has passed this year, calculate for next year
+                if this_year_birthday < today:
+                    next_birthday = client.date_of_birth.replace(year=today.year + 1)
+                else:
+                    next_birthday = this_year_birthday
+
+                days_until_birthday = (next_birthday - today).days
+
+                # Only include birthdays within 7-day window
+                if days_until_birthday == 0:
+                    # Today's birthday
+                    birthdays_today.append(client)
+                elif 1 <= days_until_birthday <= 7:
+                    # Upcoming: tomorrow to 7 days from today
+                    upcoming_birthdays.append(client)
+                elif -7 <= days_until_birthday <= -1:
+                    # Past: 7 days ago to yesterday
+                    past_birthdays.append(client)
+                # Exclude birthdays beyond 7 days in either direction
+
+            except ValueError:
+                # Handle invalid dates (e.g., Feb 30)
+                pass
 
         # Sort each category by date (month and day)
         def sort_by_birth_date(client):
