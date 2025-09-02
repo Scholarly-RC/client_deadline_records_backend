@@ -1,15 +1,20 @@
-from django.utils import timezone
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from django.contrib.auth.models import User
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from core.choices import TaskStatus
 from core.models import (
     AppLog,
     Client,
-    ClientDeadline,
     ClientDocument,
-    DeadlineType,
     Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
     User,
-    WorkUpdate,
 )
 from core.utils import get_today_local
 
@@ -19,6 +24,9 @@ from core.utils import get_today_local
 
 
 class UserMiniSerializer(serializers.ModelSerializer):
+    fullname = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -30,47 +38,21 @@ class UserMiniSerializer(serializers.ModelSerializer):
             "is_admin",
         ]
 
+    @extend_schema_field(serializers.CharField)
+    def get_fullname(self, obj) -> str:
+        """Return formatted full name"""
+        return obj.fullname
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_admin(self, obj) -> bool:
+        """Return whether user is admin"""
+        return obj.is_admin
+
 
 class ClientMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ["id", "name"]
-
-
-class DeadlineTypeMiniSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DeadlineType
-        fields = ["id", "name"]
-
-
-class ClientDeadlineMiniSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = ClientDeadline
-        fields = ["id", "due_date", "status"]
-
-
-class ClientDocumentMiniSerializer(serializers.ModelSerializer):
-    size = serializers.SerializerMethodField()
-    uploaded_by = UserMiniSerializer()
-
-    class Meta:
-        model = ClientDocument
-        fields = ["id", "name", "file", "size", "uploaded_by", "uploaded_at"]
-
-    def get_size(self, obj):
-        if obj.file:
-            size_mb = round(obj.file.size / (1024 * 1024), 2)
-            return f"{size_mb} MB"
-        return None
-
-
-class WorkUpdateMiniSerializer(serializers.ModelSerializer):
-    created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
-
-    class Meta:
-        model = WorkUpdate
-        fields = ["id", "status", "notes", "created_at"]
 
 
 # =======================
@@ -81,6 +63,9 @@ class WorkUpdateMiniSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     last_login = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
     password = serializers.CharField(write_only=True)
+    fullname = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    has_logs = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -99,6 +84,21 @@ class UserSerializer(serializers.ModelSerializer):
             "is_admin",
             "has_logs",
         ]
+
+    @extend_schema_field(serializers.CharField)
+    def get_fullname(self, obj) -> str:
+        """Return formatted full name"""
+        return obj.fullname
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_is_admin(self, obj) -> bool:
+        """Return whether user is admin"""
+        return obj.is_admin
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_has_logs(self, obj) -> bool:
+        """Return whether user has logs"""
+        return obj.has_logs
 
     def validate(self, data):
         if (
@@ -158,12 +158,6 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 
-class DeadlineTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DeadlineType
-        fields = "__all__"
-
-
 class ClientSerializer(serializers.ModelSerializer):
     created_by = UserMiniSerializer(read_only=True)
     created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
@@ -175,6 +169,183 @@ class ClientSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
+class TaskSerializer(serializers.ModelSerializer):
+    """Serializer for Task model"""
+
+    assigned_to_detail = UserSerializer(source="assigned_to", read_only=True)
+    client_detail = ClientMiniSerializer(source="client", read_only=True)
+    category_specific_fields = serializers.SerializerMethodField()
+
+    # Approval-related read-only fields
+    pending_approver = UserMiniSerializer(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            "id",
+            "client",
+            "client_detail",
+            "category",
+            "description",
+            "status",
+            "assigned_to",
+            "assigned_to_detail",
+            "priority",
+            "deadline",
+            "remarks",
+            "date_complied",
+            "completion_date",
+            "last_update",
+            "period_covered",
+            "engagement_date",
+            # Category-specific fields
+            "steps",
+            "requirements",
+            "type",
+            "needed_data",
+            "area",
+            "tax_category",
+            "tax_type",
+            "form",
+            "working_paper",
+            "tax_payable",
+            "last_followup",
+            "category_specific_fields",
+            # Approval-related fields
+            "current_approval_step",
+            "requires_approval",
+            "pending_approver",
+        ]
+        read_only_fields = ["id", "last_update"]
+
+    @extend_schema_field(serializers.DictField)
+    def get_category_specific_fields(self, obj) -> Dict[str, Any]:
+        """Return category-specific fields for the task"""
+        return obj.category_specific_fields
+
+    def validate(self, data):
+        """Custom validation for date fields"""
+        engagement_date = data.get("engagement_date")
+        deadline = data.get("deadline")
+        completion_date = data.get("completion_date")
+        date_complied = data.get("date_complied")
+
+        # Validate that deadline is after engagement date if both are provided
+        if engagement_date and deadline and deadline < engagement_date:
+            raise serializers.ValidationError(
+                "Deadline cannot be earlier than engagement date."
+            )
+
+        # Validate that completion date is not before engagement date
+        if engagement_date and completion_date and completion_date < engagement_date:
+            raise serializers.ValidationError(
+                "Completion date cannot be earlier than engagement date."
+            )
+
+        # Validate that date complied is not before engagement date
+        if engagement_date and date_complied and date_complied < engagement_date:
+            raise serializers.ValidationError(
+                "Date complied cannot be earlier than engagement date."
+            )
+
+        return data
+
+
+class TaskListSerializer(serializers.ModelSerializer):
+    """Simplified serializer for Task list views"""
+
+    client_name = serializers.CharField(source="client.name", read_only=True)
+    assigned_to_name = serializers.CharField(
+        source="assigned_to.get_full_name", read_only=True
+    )
+    engagement_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    deadline = serializers.DateField(format="%b %d, %Y", read_only=True)
+    completion_date = serializers.DateField(format="%b %d, %Y", read_only=True)
+    last_update = serializers.DateTimeField(format="%b %d, %Y %I:%M %p", read_only=True)
+    deadline_days_remaining = serializers.SerializerMethodField()
+    category_display = serializers.CharField(
+        source="get_category_display", read_only=True
+    )
+    category_specific_fields = serializers.SerializerMethodField()
+
+    # Approver details
+    pending_approver = UserMiniSerializer(read_only=True)
+    current_approval_step = serializers.IntegerField(read_only=True)
+    requires_approval = serializers.BooleanField(read_only=True)
+    all_approvers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Task
+        fields = [
+            "id",
+            "client_name",
+            "category",
+            "category_display",
+            "description",
+            "status",
+            "assigned_to",
+            "assigned_to_name",
+            "priority",
+            "engagement_date",
+            "deadline",
+            "completion_date",
+            "last_update",
+            "deadline_days_remaining",
+            "remarks",
+            "category_specific_fields",
+            # Approval-related fields
+            "pending_approver",
+            "current_approval_step",
+            "requires_approval",
+            "all_approvers",
+        ]
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_deadline_days_remaining(self, obj) -> Optional[int]:
+        """Calculate days remaining until deadline"""
+        if obj.deadline:
+            return (obj.deadline - get_today_local()).days
+        return None
+
+    @extend_schema_field(serializers.DictField)
+    def get_category_specific_fields(self, obj) -> Dict[str, Any]:
+        """Return category-specific fields for the task"""
+        return obj.category_specific_fields
+
+    @extend_schema_field(serializers.ListField)
+    def get_all_approvers(self, obj) -> List[Dict[str, Any]]:
+        """Get all approvers in the approval workflow (both pending and completed)"""
+        if not obj.requires_approval:
+            return []
+
+        approvers = []
+        for approval in obj.approvals.all().order_by("step_number"):
+            approver_data = {
+                "step": approval.step_number,
+                "approver": UserMiniSerializer(approval.approver).data,
+                "action": approval.action,
+                "action_display": approval.get_action_display(),
+                "comments": approval.comments,
+                "is_current": (
+                    approval.step_number == obj.current_approval_step
+                    and approval.action == "pending"
+                ),
+                "created_at": (
+                    approval.created_at.strftime("%b %d, %Y at %I:%M %p")
+                    if approval.created_at
+                    else None
+                ),
+                "updated_at": (
+                    approval.updated_at.strftime("%b %d, %Y at %I:%M %p")
+                    if approval.updated_at
+                    else None
+                ),
+            }
+            approvers.append(approver_data)
+
+        return approvers
+
+
 class ClientBirthdaySerializer(serializers.ModelSerializer):
     days_remaining = serializers.SerializerMethodField()
 
@@ -184,82 +355,20 @@ class ClientBirthdaySerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
     def get_days_remaining(self, obj):
-        return (obj.date_of_birth - get_today_local()).days
+        today = get_today_local()
+        birth_date = obj.date_of_birth
 
+        # Create this year's birthday date
+        this_year_birthday = birth_date.replace(year=today.year)
 
-class ClientDocumentSerializer(serializers.ModelSerializer):
-    client = ClientMiniSerializer(read_only=True)
-    client_id = serializers.PrimaryKeyRelatedField(
-        queryset=Client.objects.all(), source="client", write_only=True
-    )
-    deadline = ClientDeadlineMiniSerializer(read_only=True)
-    deadline_id = serializers.PrimaryKeyRelatedField(
-        queryset=ClientDeadline.objects.all(), source="deadline", write_only=True
-    )
-    uploaded_by = UserMiniSerializer(read_only=True)
-    file_url = serializers.SerializerMethodField()
+        if this_year_birthday < today:
+            # Birthday already passed this year, calculate for next year
+            next_birthday = birth_date.replace(year=today.year + 1)
+        else:
+            # Birthday hasn't passed this year yet
+            next_birthday = this_year_birthday
 
-    class Meta:
-        model = ClientDocument
-        fields = "__all__"
-        read_only_fields = ["uploaded_at"]
-
-    def get_file_url(self, obj):
-        request = self.context.get("request")
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
-        return None
-
-
-class ClientDeadlineSerializer(serializers.ModelSerializer):
-    client = ClientMiniSerializer(read_only=True)
-    client_id = serializers.PrimaryKeyRelatedField(
-        queryset=Client.objects.all(), source="client", write_only=True
-    )
-    deadline_type = DeadlineTypeMiniSerializer(read_only=True)
-    deadline_type_id = serializers.PrimaryKeyRelatedField(
-        queryset=DeadlineType.objects.all(), source="deadline_type", write_only=True
-    )
-    assigned_to = UserMiniSerializer(read_only=True)
-    assigned_to_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        source="assigned_to",
-        write_only=True,
-        allow_null=True,
-    )
-    created_by = UserMiniSerializer(read_only=True)
-    days_remaining = serializers.SerializerMethodField()
-    is_overdue = serializers.SerializerMethodField()
-    documents = ClientDocumentMiniSerializer(read_only=True, many=True)
-    work_updates = WorkUpdateMiniSerializer(read_only=True, many=True)
-
-    class Meta:
-        model = ClientDeadline
-        fields = "__all__"
-        read_only_fields = ["created_at", "updated_at", "status"]
-
-    def get_days_remaining(self, obj):
-        return (obj.due_date - get_today_local()).days
-
-    def get_is_overdue(self, obj):
-        return obj.due_date < get_today_local() and obj.status not in [
-            "completed",
-            "cancelled",
-        ]
-
-
-class WorkUpdateSerializer(serializers.ModelSerializer):
-    deadline = ClientDeadlineMiniSerializer(read_only=True)
-    deadline_id = serializers.PrimaryKeyRelatedField(
-        queryset=ClientDeadline.objects.all(), source="deadline", write_only=True
-    )
-    created_by = UserMiniSerializer(read_only=True)
-    created_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
-
-    class Meta:
-        model = WorkUpdate
-        fields = "__all__"
-        read_only_fields = ["created_at"]
+        return (next_birthday - today).days
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -281,3 +390,181 @@ class AppLogSerializer(serializers.ModelSerializer):
         model = AppLog
         fields = "__all__"
         read_only_fields = ["created_at"]
+
+
+class TaskStatusHistorySerializer(serializers.ModelSerializer):
+    """Serializer for TaskStatusHistory model"""
+
+    changed_by = UserMiniSerializer(read_only=True)
+    old_status_display = serializers.CharField(
+        source="get_old_status_display", read_only=True
+    )
+    new_status_display = serializers.CharField(
+        source="get_new_status_display", read_only=True
+    )
+    change_type_display = serializers.CharField(
+        source="get_change_type_display", read_only=True
+    )
+    formatted_date = serializers.ReadOnlyField()
+
+    class Meta:
+        model = TaskStatusHistory
+        fields = [
+            "id",
+            "task",
+            "old_status",
+            "old_status_display",
+            "new_status",
+            "new_status_display",
+            "changed_by",
+            "remarks",
+            "change_type",
+            "change_type_display",
+            "related_approval",
+            "created_at",
+            "formatted_date",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TaskApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for TaskApproval model"""
+
+    approver = UserMiniSerializer(read_only=True)
+    next_approver = UserMiniSerializer(read_only=True)
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+    created_at = serializers.DateTimeField(
+        format="%b %d, %Y at %I:%M %p", read_only=True
+    )
+    updated_at = serializers.DateTimeField(
+        format="%b %d, %Y at %I:%M %p", read_only=True
+    )
+
+    class Meta:
+        model = TaskApproval
+        fields = [
+            "id",
+            "task",
+            "approver",
+            "action",
+            "action_display",
+            "comments",
+            "step_number",
+            "next_approver",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class InitiateApprovalSerializer(serializers.Serializer):
+    """Serializer for initiating task approval workflow"""
+
+    approvers = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of user IDs who will approve this task in sequence",
+    )
+
+    def validate_approvers(self, value):
+        """Validate that all approver IDs are valid admin users"""
+        from core.models import User
+
+        # Check that all user IDs exist and are admins
+        users = User.objects.filter(id__in=value, role="admin")
+        if len(users) != len(value):
+            raise serializers.ValidationError(
+                "All approvers must be valid admin users."
+            )
+        return value
+
+
+class ProcessApprovalSerializer(serializers.Serializer):
+    """Serializer for processing approval decisions"""
+
+    ACTION_CHOICES = [
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    action = serializers.ChoiceField(
+        choices=ACTION_CHOICES, help_text="The approval decision"
+    )
+    comments = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional comments about the approval decision",
+    )
+    next_approver = serializers.IntegerField(
+        required=False, help_text="User ID of next approver (optional, for forwarding)"
+    )
+
+    def validate_next_approver(self, value):
+        """Validate that next_approver is a valid admin user"""
+        if value is not None:
+            from core.models import User
+
+            try:
+                user = User.objects.get(id=value, role="admin")
+                return user
+            except User.DoesNotExist:
+                raise serializers.ValidationError(
+                    "Next approver must be a valid admin user."
+                )
+        return None
+
+
+class ClientDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for ClientDocument model"""
+
+    client_name = serializers.CharField(source="client.name", read_only=True)
+    uploaded_by_name = serializers.CharField(
+        source="uploaded_by.get_full_name", read_only=True
+    )
+    file_size = serializers.SerializerMethodField()
+    file_extension = serializers.SerializerMethodField()
+    uploaded_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+    updated_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+    deleted_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
+
+    class Meta:
+        model = ClientDocument
+        fields = [
+            "id",
+            "client",
+            "client_name",
+            "title",
+            "description",
+            "document_file",
+            "uploaded_by",
+            "uploaded_by_name",
+            "file_size",
+            "file_extension",
+            "uploaded_at",
+            "updated_at",
+            "is_deleted",
+            "deleted_at",
+        ]
+        read_only_fields = [
+            "id",
+            "uploaded_at",
+            "updated_at",
+            "uploaded_by",
+            "is_deleted",
+            "deleted_at",
+        ]
+
+    @extend_schema_field(serializers.CharField)
+    def get_file_size(self, obj) -> str:
+        """Return file size in human readable format"""
+        return obj.file_size
+
+    @extend_schema_field(serializers.CharField)
+    def get_file_extension(self, obj) -> str:
+        """Return file extension"""
+        return obj.file_extension
+
+    def create(self, validated_data):
+        """Set the uploaded_by field to the current user"""
+        validated_data["uploaded_by"] = self.context["request"].user
+        return super().create(validated_data)
