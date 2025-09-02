@@ -28,7 +28,6 @@ paths:
       - app-logs
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -54,7 +53,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '201':
           content:
@@ -76,7 +74,6 @@ paths:
       - app-logs
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -109,7 +106,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -141,7 +137,6 @@ paths:
               $ref: '#/components/schemas/PatchedAppLog'
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -162,7 +157,6 @@ paths:
       - app-logs
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '204':
           description: No response body
@@ -173,13 +167,327 @@ paths:
       - app-logs
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppLog'
+          description: ''
+  /api/client-documents/:
+    get:
+      operationId: client_documents_list
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: query
+        name: client
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: uploaded_at
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_at__gte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_at__lte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_by
+        schema:
+          type: integer
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClientDocumentList'
+          description: ''
+    post:
+      operationId: client_documents_create
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/{id}/:
+    get:
+      operationId: client_documents_retrieve
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    put:
+      operationId: client_documents_update
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    patch:
+      operationId: client_documents_partial_update
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    delete:
+      operationId: client_documents_destroy
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/client-documents/{id}/download/:
+    get:
+      operationId: client_documents_download_retrieve
+      description: Download a specific document
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/{id}/hard-delete/:
+    delete:
+      operationId: client_documents_hard_delete_destroy
+      description: Permanently delete a document and its file (admin only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/client-documents/{id}/restore/:
+    post:
+      operationId: client_documents_restore_create
+      description: Restore a soft-deleted document
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/by-client/:
+    get:
+      operationId: client_documents_by_client_retrieve
+      description: Get all documents for a specific client
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/deleted/:
+    get:
+      operationId: client_documents_deleted_retrieve
+      description: Get all soft-deleted documents (admin only)
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
           description: ''
   /api/clients/:
     get:
@@ -203,11 +511,16 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
       tags:
       - clients
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -233,7 +546,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '201':
           content:
@@ -255,7 +567,6 @@ paths:
       - clients
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -288,7 +599,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -320,7 +630,6 @@ paths:
               $ref: '#/components/schemas/PatchedClient'
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -341,7 +650,6 @@ paths:
       - clients
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '204':
           description: No response body
@@ -352,7 +660,6 @@ paths:
       - clients
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -388,7 +695,6 @@ paths:
       - notifications
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -414,7 +720,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '201':
           content:
@@ -436,7 +741,6 @@ paths:
       - notifications
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -469,7 +773,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -501,7 +804,6 @@ paths:
               $ref: '#/components/schemas/PatchedNotification'
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -522,7 +824,6 @@ paths:
       - notifications
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '204':
           description: No response body
@@ -552,7 +853,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -795,7 +1095,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -826,7 +1125,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '201':
           content:
@@ -853,7 +1151,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -887,7 +1184,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -924,7 +1220,6 @@ paths:
               $ref: '#/components/schemas/PatchedTask'
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -950,7 +1245,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '204':
           description: No response body
@@ -981,7 +1275,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1016,7 +1309,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1051,7 +1343,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1074,7 +1365,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1097,7 +1387,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1136,7 +1425,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1152,7 +1440,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1168,7 +1455,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1184,7 +1470,33 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/export-statistics/:
+    post:
+      operationId: tasks_export_statistics_create
+      description: Export comprehensive task statistics to CSV or Excel format
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
       responses:
         '200':
           content:
@@ -1200,7 +1512,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1216,7 +1527,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1232,7 +1542,6 @@ paths:
       - tasks
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1320,7 +1629,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1346,7 +1654,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '201':
           content:
@@ -1368,7 +1675,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1401,7 +1707,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1433,7 +1738,6 @@ paths:
               $ref: '#/components/schemas/PatchedUser'
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1454,7 +1758,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '204':
           description: No response body
@@ -1472,7 +1775,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1506,7 +1808,6 @@ paths:
         required: true
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1528,7 +1829,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1543,7 +1843,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1558,7 +1857,6 @@ paths:
       - users
       security:
       - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1659,6 +1957,67 @@ components:
       - is_active
       - name
       - updated_at
+    ClientDocument:
+      type: object
+      description: Serializer for ClientDocument model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        document_file:
+          type: string
+          format: uri
+        uploaded_by:
+          type: integer
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        file_size:
+          type: string
+          readOnly: true
+        file_extension:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - client
+      - client_name
+      - deleted_at
+      - document_file
+      - file_extension
+      - file_size
+      - id
+      - is_deleted
+      - title
+      - updated_at
+      - uploaded_at
+      - uploaded_by
+      - uploaded_by_name
     ClientMini:
       type: object
       properties:
@@ -1742,6 +2101,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AppLog'
+    PaginatedClientDocumentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientDocument'
     PaginatedClientList:
       type: object
       required:
@@ -1895,6 +2277,53 @@ components:
         notes:
           type: string
         updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedClientDocument:
+      type: object
+      description: Serializer for ClientDocument model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        document_file:
+          type: string
+          format: uri
+        uploaded_by:
+          type: integer
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        file_size:
+          type: string
+          readOnly: true
+        file_extension:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
           type: string
           format: date-time
           readOnly: true
@@ -2501,10 +2930,6 @@ components:
         * `admin` - Admin
         * `staff` - Staff
   securitySchemes:
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: sessionid
     jwtAuth:
       type: http
       scheme: bearer
