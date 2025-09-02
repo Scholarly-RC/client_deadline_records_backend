@@ -1,0 +1,2936 @@
+openapi: 3.0.3
+info:
+  title: Client Deadline Records Backend API
+  version: 1.0.0
+  description: Backend system for managing client deadlines and task tracking
+paths:
+  /api/app-logs/:
+    get:
+      operationId: app_logs_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: user
+        schema:
+          type: integer
+      tags:
+      - app-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAppLogList'
+          description: ''
+    post:
+      operationId: app_logs_create
+      tags:
+      - app-logs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLog'
+          description: ''
+  /api/app-logs/{id}/:
+    get:
+      operationId: app_logs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this App Log.
+        required: true
+      tags:
+      - app-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLog'
+          description: ''
+    put:
+      operationId: app_logs_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this App Log.
+        required: true
+      tags:
+      - app-logs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppLog'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLog'
+          description: ''
+    patch:
+      operationId: app_logs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this App Log.
+        required: true
+      tags:
+      - app-logs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAppLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAppLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAppLog'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLog'
+          description: ''
+    delete:
+      operationId: app_logs_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this App Log.
+        required: true
+      tags:
+      - app-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/app-logs/users/:
+    get:
+      operationId: app_logs_users_retrieve
+      tags:
+      - app-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppLog'
+          description: ''
+  /api/client-documents/:
+    get:
+      operationId: client_documents_list
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: query
+        name: client
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: uploaded_at
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_at__gte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_at__lte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: uploaded_by
+        schema:
+          type: integer
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClientDocumentList'
+          description: ''
+    post:
+      operationId: client_documents_create
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/{id}/:
+    get:
+      operationId: client_documents_retrieve
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    put:
+      operationId: client_documents_update
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    patch:
+      operationId: client_documents_partial_update
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClientDocument'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+    delete:
+      operationId: client_documents_destroy
+      description: |-
+        ViewSet for managing ClientDocument records
+
+        Provides CRUD operations for client documents with file upload capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/client-documents/{id}/download/:
+    get:
+      operationId: client_documents_download_retrieve
+      description: Download a specific document
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/{id}/hard-delete/:
+    delete:
+      operationId: client_documents_hard_delete_destroy
+      description: Permanently delete a document and its file (admin only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/client-documents/{id}/restore/:
+    post:
+      operationId: client_documents_restore_create
+      description: Restore a soft-deleted document
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client Document.
+        required: true
+      tags:
+      - client-documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientDocument'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/by-client/:
+    get:
+      operationId: client_documents_by_client_retrieve
+      description: Get all documents for a specific client
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/client-documents/deleted/:
+    get:
+      operationId: client_documents_deleted_retrieve
+      description: Get all soft-deleted documents (admin only)
+      tags:
+      - client-documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientDocument'
+          description: ''
+  /api/clients/:
+    get:
+      operationId: clients_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - clients
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClientList'
+          description: ''
+    post:
+      operationId: clients_create
+      tags:
+      - clients
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Client'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Client'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Client'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+          description: ''
+  /api/clients/{id}/:
+    get:
+      operationId: clients_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client.
+        required: true
+      tags:
+      - clients
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+          description: ''
+    put:
+      operationId: clients_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client.
+        required: true
+      tags:
+      - clients
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Client'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Client'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Client'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+          description: ''
+    patch:
+      operationId: clients_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client.
+        required: true
+      tags:
+      - clients
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClient'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClient'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClient'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+          description: ''
+    delete:
+      operationId: clients_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Client.
+        required: true
+      tags:
+      - clients
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/clients/birthdays/:
+    get:
+      operationId: clients_birthdays_retrieve
+      tags:
+      - clients
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+          description: ''
+  /api/notifications/:
+    get:
+      operationId: notifications_list
+      parameters:
+      - in: query
+        name: is_read
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: recipient
+        schema:
+          type: integer
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+    post:
+      operationId: notifications_create
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/notifications/{id}/:
+    get:
+      operationId: notifications_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Notification.
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+    put:
+      operationId: notifications_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Notification.
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+    patch:
+      operationId: notifications_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Notification.
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNotification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNotification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNotification'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+    delete:
+      operationId: notifications_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Notification.
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/{id}/mark-as-read/:
+    post:
+      operationId: notifications_mark_as_read_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Notification.
+        required: true
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Notification'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Notification'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      parameters:
+      - in: query
+        name: assigned_to
+        schema:
+          type: integer
+      - in: query
+        name: category
+        schema:
+          type: string
+          enum:
+          - accounting_audit
+          - compliance
+          - finance_implementation
+          - financial_statement
+          - hr_implementation
+          - miscellaneous
+          - tax_case
+        description: |-
+          * `compliance` - Compliance
+          * `financial_statement` - Financial Statement Preparation
+          * `accounting_audit` - Accounting Audit
+          * `finance_implementation` - Finance Implementation
+          * `hr_implementation` - Human Resource Implementation
+          * `miscellaneous` - Miscellaneous Tasks
+          * `tax_case` - Tax Case
+      - in: query
+        name: category__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      - in: query
+        name: client
+        schema:
+          type: integer
+      - in: query
+        name: completion_date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: completion_date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: completion_date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: deadline
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: deadline__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: deadline__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: engagement_date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: engagement_date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: engagement_date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: form
+        schema:
+          type: string
+          nullable: true
+          enum:
+          - 0619E
+          - 1601EQ
+          - '1701'
+          - 2551Q
+        description: |-
+          * `2551Q` - BIR Form 2551Q - Quarterly Percentage Tax Return
+          * `1701` - BIR Form 1701 - Annual Income Tax Return (Individuals, Estates, Trusts)
+          * `0619E` - BIR Form 0619E - Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)
+          * `1601EQ` - BIR Form 1601-EQ - Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)
+      - in: query
+        name: form__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: priority
+        schema:
+          type: string
+          enum:
+          - high
+          - low
+          - medium
+        description: |-
+          * `high` - High
+          * `medium` - Medium
+          * `low` - Low
+      - in: query
+        name: priority__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - completed
+          - for_checking
+          - for_revision
+          - not_yet_started
+          - on_going
+          - pending
+        description: |-
+          * `completed` - Completed
+          * `for_revision` - For Revision
+          * `for_checking` - For Checking
+          * `on_going` - On Going
+          * `pending` - Pending
+          * `not_yet_started` - Not Yet Started
+          * `cancelled` - Cancelled
+      - in: query
+        name: status__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      - in: query
+        name: tax_category
+        schema:
+          type: string
+          nullable: true
+          enum:
+          - OTE
+          - RP
+        description: |-
+          * `OTE` - One-Time Engagement
+          * `RP` - Regular Process
+      - in: query
+        name: tax_category__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      - in: query
+        name: tax_type
+        schema:
+          type: string
+          nullable: true
+          enum:
+          - IT
+          - PT
+          - WE
+        description: |-
+          * `PT` - Percentage Tax
+          * `IT` - Income Tax
+          * `WE` - Withholding Tax - Expanded
+      - in: query
+        name: tax_type__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Multiple values may be separated by commas.
+        explode: false
+        style: form
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskListList'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: tasks_retrieve
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    put:
+      operationId: tasks_update
+      description: Override update to track assigned_to changes
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: tasks_partial_update
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: tasks_destroy
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/{id}/initiate-approval/:
+    post:
+      operationId: tasks_initiate_approval_create
+      description: Initiate approval workflow for a task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/mark_completed/:
+    post:
+      operationId: tasks_mark_completed_create
+      description: Mark a task as completed
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/process-approval/:
+    post:
+      operationId: tasks_process_approval_create
+      description: Process an approval decision for a task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/status-history/:
+    get:
+      operationId: tasks_status_history_retrieve
+      description: Get status history for a specific task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/task-approvals/:
+    get:
+      operationId: tasks_task_approvals_retrieve
+      description: Get approval records for a specific task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/update-deadline/:
+    post:
+      operationId: tasks_update_deadline_create
+      description: |-
+        ViewSet for managing Task records
+
+        Provides CRUD operations for tasks with filtering,
+        searching, and ordering capabilities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/by_category/:
+    get:
+      operationId: tasks_by_category_retrieve
+      description: Get tasks grouped by category
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/by_user/:
+    get:
+      operationId: tasks_by_user_retrieve
+      description: Get tasks grouped by assigned user
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/due_soon/:
+    get:
+      operationId: tasks_due_soon_retrieve
+      description: Get tasks due within the next 7 days
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/export-statistics/:
+    post:
+      operationId: tasks_export_statistics_create
+      description: Export comprehensive task statistics to CSV or Excel format
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/overdue/:
+    get:
+      operationId: tasks_overdue_retrieve
+      description: Get all overdue tasks
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/pending-approvals/:
+    get:
+      operationId: tasks_pending_approvals_retrieve
+      description: Get tasks pending current user's approval
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/statistics/:
+    get:
+      operationId: tasks_statistics_retrieve
+      description: Get comprehensive task statistics optimized for dashboard visualization
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/token/:
+    post:
+      operationId: token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/token/refresh/:
+    post:
+      operationId: token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/users/:
+    get:
+      operationId: users_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: users_create
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/:
+    get:
+      operationId: users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: users_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: users_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/users/{id}/deadlines-tasks/:
+    get:
+      operationId: users_deadlines_tasks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/toggle-active-status/:
+    post:
+      operationId: users_toggle_active_status_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/unread-notification-count/:
+    get:
+      operationId: users_unread_notification_count_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/get-current-user/:
+    get:
+      operationId: users_get_current_user_retrieve
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/user-choices/:
+    get:
+      operationId: users_user_choices_retrieve
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+components:
+  schemas:
+    AppLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        details:
+          type: string
+      required:
+      - created_at
+      - details
+      - id
+      - user
+    BirFormsEnum:
+      enum:
+      - 2551Q
+      - '1701'
+      - 0619E
+      - 1601EQ
+      type: string
+      description: |-
+        * `2551Q` - BIR Form 2551Q - Quarterly Percentage Tax Return
+        * `1701` - BIR Form 1701 - Annual Income Tax Return (Individuals, Estates, Trusts)
+        * `0619E` - BIR Form 0619E - Monthly Remittance Form of Creditable Income Taxes Withheld (Expanded)
+        * `1601EQ` - BIR Form 1601-EQ - Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded)
+    BlankEnum:
+      enum:
+      - ''
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        contact_person:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        address:
+          type: string
+        status:
+          $ref: '#/components/schemas/ClientStatusEnum'
+        tin:
+          type: string
+          nullable: true
+          maxLength: 100
+        notes:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - is_active
+      - name
+      - updated_at
+    ClientDocument:
+      type: object
+      description: Serializer for ClientDocument model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        document_file:
+          type: string
+          format: uri
+        uploaded_by:
+          type: integer
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        file_size:
+          type: string
+          readOnly: true
+        file_extension:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - client
+      - client_name
+      - deleted_at
+      - document_file
+      - file_extension
+      - file_size
+      - id
+      - is_deleted
+      - title
+      - updated_at
+      - uploaded_at
+      - uploaded_by
+      - uploaded_by_name
+    ClientMini:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+      required:
+      - id
+      - name
+    ClientStatusEnum:
+      enum:
+      - active
+      - inactive
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        recipient:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+        timesince_created:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        message:
+          type: string
+        link:
+          type: string
+          nullable: true
+          maxLength: 255
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - is_read
+      - message
+      - recipient
+      - timesince_created
+      - title
+    NullEnum:
+      enum:
+      - null
+    PaginatedAppLogList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppLog'
+    PaginatedClientDocumentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientDocument'
+    PaginatedClientList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Client'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedTaskListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskList'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedAppLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        details:
+          type: string
+    PatchedClient:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        contact_person:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        address:
+          type: string
+        status:
+          $ref: '#/components/schemas/ClientStatusEnum'
+        tin:
+          type: string
+          nullable: true
+          maxLength: 100
+        notes:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedClientDocument:
+      type: object
+      description: Serializer for ClientDocument model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        document_file:
+          type: string
+          format: uri
+        uploaded_by:
+          type: integer
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        file_size:
+          type: string
+          readOnly: true
+        file_extension:
+          type: string
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        recipient:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+        timesince_created:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        message:
+          type: string
+        link:
+          type: string
+          nullable: true
+          maxLength: 255
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedTask:
+      type: object
+      description: Serializer for Task model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_detail:
+          allOf:
+          - $ref: '#/components/schemas/ClientMini'
+          readOnly: true
+        category:
+          $ref: '#/components/schemas/TaskCategoryEnum'
+        description:
+          type: string
+          maxLength: 255
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        assigned_to:
+          type: integer
+        assigned_to_detail:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        priority:
+          $ref: '#/components/schemas/TaskPriorityEnum'
+        deadline:
+          type: string
+          format: date
+        remarks:
+          type: string
+          nullable: true
+        date_complied:
+          type: string
+          format: date
+          nullable: true
+        completion_date:
+          type: string
+          format: date
+          nullable: true
+        last_update:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        period_covered:
+          type: string
+          nullable: true
+          maxLength: 255
+        engagement_date:
+          type: string
+          format: date
+          nullable: true
+        steps:
+          type: string
+          nullable: true
+          maxLength: 255
+        requirements:
+          type: string
+          nullable: true
+          maxLength: 255
+        type:
+          type: string
+          nullable: true
+          maxLength: 255
+        needed_data:
+          type: string
+          nullable: true
+          maxLength: 255
+        area:
+          type: string
+          nullable: true
+          maxLength: 255
+        tax_category:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/TaxCaseCategoryEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tax_type:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/TypeOfTaxCaseEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        form:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/BirFormsEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        working_paper:
+          type: string
+          nullable: true
+          maxLength: 255
+        tax_payable:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        last_followup:
+          type: string
+          format: date
+          nullable: true
+        category_specific_fields:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        current_approval_step:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        requires_approval:
+          type: boolean
+        pending_approver:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        middle_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        fullname:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+        is_admin:
+          type: boolean
+          readOnly: true
+        has_logs:
+          type: boolean
+          readOnly: true
+    Task:
+      type: object
+      description: Serializer for Task model
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client:
+          type: integer
+        client_detail:
+          allOf:
+          - $ref: '#/components/schemas/ClientMini'
+          readOnly: true
+        category:
+          $ref: '#/components/schemas/TaskCategoryEnum'
+        description:
+          type: string
+          maxLength: 255
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        assigned_to:
+          type: integer
+        assigned_to_detail:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        priority:
+          $ref: '#/components/schemas/TaskPriorityEnum'
+        deadline:
+          type: string
+          format: date
+        remarks:
+          type: string
+          nullable: true
+        date_complied:
+          type: string
+          format: date
+          nullable: true
+        completion_date:
+          type: string
+          format: date
+          nullable: true
+        last_update:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        period_covered:
+          type: string
+          nullable: true
+          maxLength: 255
+        engagement_date:
+          type: string
+          format: date
+          nullable: true
+        steps:
+          type: string
+          nullable: true
+          maxLength: 255
+        requirements:
+          type: string
+          nullable: true
+          maxLength: 255
+        type:
+          type: string
+          nullable: true
+          maxLength: 255
+        needed_data:
+          type: string
+          nullable: true
+          maxLength: 255
+        area:
+          type: string
+          nullable: true
+          maxLength: 255
+        tax_category:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/TaxCaseCategoryEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tax_type:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/TypeOfTaxCaseEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        form:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/BirFormsEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        working_paper:
+          type: string
+          nullable: true
+          maxLength: 255
+        tax_payable:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        last_followup:
+          type: string
+          format: date
+          nullable: true
+        category_specific_fields:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        current_approval_step:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        requires_approval:
+          type: boolean
+        pending_approver:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+      required:
+      - assigned_to
+      - assigned_to_detail
+      - category
+      - category_specific_fields
+      - client
+      - client_detail
+      - deadline
+      - description
+      - id
+      - last_update
+      - pending_approver
+    TaskCategoryEnum:
+      enum:
+      - compliance
+      - financial_statement
+      - accounting_audit
+      - finance_implementation
+      - hr_implementation
+      - miscellaneous
+      - tax_case
+      type: string
+      description: |-
+        * `compliance` - Compliance
+        * `financial_statement` - Financial Statement Preparation
+        * `accounting_audit` - Accounting Audit
+        * `finance_implementation` - Finance Implementation
+        * `hr_implementation` - Human Resource Implementation
+        * `miscellaneous` - Miscellaneous Tasks
+        * `tax_case` - Tax Case
+    TaskList:
+      type: object
+      description: Simplified serializer for Task list views
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        client_name:
+          type: string
+          readOnly: true
+        category:
+          $ref: '#/components/schemas/TaskCategoryEnum'
+        category_display:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          maxLength: 255
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        assigned_to:
+          type: integer
+        assigned_to_name:
+          type: string
+          readOnly: true
+        priority:
+          $ref: '#/components/schemas/TaskPriorityEnum'
+        engagement_date:
+          type: string
+          format: date
+          readOnly: true
+        deadline:
+          type: string
+          format: date
+          readOnly: true
+        completion_date:
+          type: string
+          format: date
+          readOnly: true
+        last_update:
+          type: string
+          format: date-time
+          readOnly: true
+        deadline_days_remaining:
+          type: integer
+          readOnly: true
+        remarks:
+          type: string
+          nullable: true
+        category_specific_fields:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        pending_approver:
+          allOf:
+          - $ref: '#/components/schemas/UserMini'
+          readOnly: true
+        current_approval_step:
+          type: integer
+          readOnly: true
+        requires_approval:
+          type: boolean
+          readOnly: true
+        all_approvers:
+          type: array
+          items: {}
+          readOnly: true
+      required:
+      - all_approvers
+      - assigned_to
+      - assigned_to_name
+      - category
+      - category_display
+      - category_specific_fields
+      - client_name
+      - completion_date
+      - current_approval_step
+      - deadline
+      - deadline_days_remaining
+      - description
+      - engagement_date
+      - id
+      - last_update
+      - pending_approver
+      - requires_approval
+    TaskPriorityEnum:
+      enum:
+      - high
+      - medium
+      - low
+      type: string
+      description: |-
+        * `high` - High
+        * `medium` - Medium
+        * `low` - Low
+    TaskStatusEnum:
+      enum:
+      - completed
+      - for_revision
+      - for_checking
+      - on_going
+      - pending
+      - not_yet_started
+      - cancelled
+      type: string
+      description: |-
+        * `completed` - Completed
+        * `for_revision` - For Revision
+        * `for_checking` - For Checking
+        * `on_going` - On Going
+        * `pending` - Pending
+        * `not_yet_started` - Not Yet Started
+        * `cancelled` - Cancelled
+    TaxCaseCategoryEnum:
+      enum:
+      - OTE
+      - RP
+      type: string
+      description: |-
+        * `OTE` - One-Time Engagement
+        * `RP` - Regular Process
+    TokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - password
+      - refresh
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+    TypeOfTaxCaseEnum:
+      enum:
+      - PT
+      - IT
+      - WE
+      type: string
+      description: |-
+        * `PT` - Percentage Tax
+        * `IT` - Income Tax
+        * `WE` - Withholding Tax - Expanded
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        middle_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        fullname:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+        is_admin:
+          type: boolean
+          readOnly: true
+        has_logs:
+          type: boolean
+          readOnly: true
+      required:
+      - fullname
+      - has_logs
+      - id
+      - is_admin
+      - last_login
+      - password
+      - username
+    UserMini:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        fullname:
+          type: string
+          readOnly: true
+        is_admin:
+          type: boolean
+          readOnly: true
+      required:
+      - fullname
+      - id
+      - is_admin
+    UserRoleEnum:
+      enum:
+      - admin
+      - staff
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `staff` - Staff
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

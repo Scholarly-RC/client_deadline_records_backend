@@ -65,3 +65,29 @@ celery -A client_deadline_records_backend worker --loglevel=info
 # In another terminal, start Celery Beat scheduler
 
 celery -A client_deadline_records_backend beat --loglevel=info
+
+# ---------------------------------------
+
+# 📚 API Documentation
+
+# ---------------------------------------
+
+# The API documentation is automatically generated using DRF Spectacular.
+# You can access the documentation in different formats:
+
+# Swagger UI (interactive documentation):
+# http://127.0.0.1:8000/api/schema/swagger-ui/
+
+# Redoc (alternative documentation):
+# http://127.0.0.1:8000/api/schema/redoc/
+
+# Raw schema (YAML):
+# http://127.0.0.1:8000/api/schema/
+
+# To regenerate the schema file:
+
+python manage.py generate_schema
+
+# Or to generate with validation:
+
+python manage.py spectacular --file schema.yml --validate
