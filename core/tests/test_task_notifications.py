@@ -159,7 +159,7 @@ class TaskNotificationTestCase(TestCase):
         # Check that the task was updated successfully
         self.assertEqual(response.status_code, 200)
 
-        # Check that create_notifications was called for reassignment
+        # Check that create_notifications was called once (only for new assignee since admin is doing the reassignment)
         mock_create_notifications.assert_called_once_with(
             recipient=self.regular_user,
             title="Task Reassigned",
@@ -168,10 +168,10 @@ class TaskNotificationTestCase(TestCase):
         )
 
     @patch("core.views.create_notifications")
-    def test_task_update_no_notification_when_not_reassigned(
+    def test_task_update_notification_when_not_reassigned(
         self, mock_create_notifications
     ):
-        """Test that no notification is sent when task is updated but not reassigned"""
+        """Test that notification is sent to assigned user when task is updated but not reassigned"""
         # Create a task first
         task = Task.objects.create(
             client=self.client_obj,
@@ -194,6 +194,248 @@ class TaskNotificationTestCase(TestCase):
 
         # Check that the task was updated successfully
         self.assertEqual(response.status_code, 200)
+
+        # Check that create_notifications was called for the assigned user
+        mock_create_notifications.assert_called_once_with(
+            recipient=self.regular_user,
+            title="Task Updated",
+            message="The task 'Updated task description' has been updated.",
+            link="/my-deadlines",
+        )
+
+    @patch("core.views.create_notifications")
+    def test_task_update_notification_to_assigned_user(self, mock_create_notifications):
+        """Test that notification is sent to assigned user when task is updated"""
+        # Create a task first
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for update notification",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Update the task (change description)
+        response = self.api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"description": "Updated task description"},
+            format="json",
+        )
+
+        # Check that the task was updated successfully
+        self.assertEqual(response.status_code, 200)
+
+        # Check that create_notifications was called for the assigned user
+        mock_create_notifications.assert_called_once_with(
+            recipient=self.regular_user,
+            title="Task Updated",
+            message="The task 'Updated task description' has been updated.",
+            link="/my-deadlines",
+        )
+
+    @patch("core.views.create_notifications")
+    def test_task_update_no_notification_when_updater_is_assigned_user(
+        self, mock_create_notifications
+    ):
+        """Test that no notification is sent when the assigned user updates their own task"""
+        # Create API client and authenticate as regular user
+        regular_api_client = APIClient()
+        refresh = RefreshToken.for_user(self.regular_user)
+        regular_api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}"
+        )
+
+        # Create a task assigned to the regular user
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for self-update",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Update the task as the assigned user
+        response = regular_api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"description": "Self-updated task description"},
+            format="json",
+        )
+
+        # Check that the task was updated successfully
+        self.assertEqual(response.status_code, 200)
+
+        # Check that create_notifications was not called
+        mock_create_notifications.assert_not_called()
+
+    @patch("core.views.create_notifications")
+    def test_task_update_notification_on_multiple_fields_change(
+        self, mock_create_notifications
+    ):
+        """Test that notification is sent when multiple fields are updated"""
+        # Create a task first
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for multiple updates",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Update multiple fields
+        response = self.api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {
+                "description": "Updated description",
+                "priority": "high",
+                "remarks": "Updated remarks",
+            },
+            format="json",
+        )
+
+        # Check that the task was updated successfully
+        self.assertEqual(response.status_code, 200)
+
+        # Check that create_notifications was called once
+        mock_create_notifications.assert_called_once_with(
+            recipient=self.regular_user,
+            title="Task Updated",
+            message="The task 'Updated description' has been updated.",
+            link="/my-deadlines",
+        )
+
+    @patch("core.views.create_notifications")
+    def test_task_update_notifications_on_reassignment_and_update(
+        self, mock_create_notifications
+    ):
+        """Test that both new and previous assignees are notified when task is reassigned with updates"""
+        # Create another user for reassignment
+        other_user = get_user_model().objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="otherpass123",
+            first_name="Other",
+            last_name="User",
+        )
+
+        # Create a task first
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for reassignment and update",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Update both assigned_to and other fields
+        response = self.api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {
+                "assigned_to": other_user.id,
+                "description": "Updated description",
+                "priority": "high",
+            },
+            format="json",
+        )
+
+        # Check that the task was updated successfully
+        self.assertEqual(response.status_code, 200)
+
+        # Check that create_notifications was called twice (for both assignees)
+        self.assertEqual(mock_create_notifications.call_count, 2)
+
+        # Check the calls were made with correct parameters
+        mock_create_notifications.assert_any_call(
+            recipient=other_user,
+            title="Task Reassigned",
+            message="The task 'Updated description' has been reassigned to you.",
+            link="/my-deadlines",
+        )
+
+        mock_create_notifications.assert_any_call(
+            recipient=self.regular_user,
+            title="Task Reassigned",
+            message=f"The task 'Updated description' has been reassigned to {other_user.fullname}.",
+            link="/my-deadlines",
+        )
+
+    @patch("core.views.create_notifications")
+    def test_task_deletion_notification_to_assigned_user(
+        self, mock_create_notifications
+    ):
+        """Test that notification is sent to assigned user when task is deleted"""
+        # Create a task first
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for deletion notification",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Delete the task
+        response = self.api_client.delete(f"/api/tasks/{task.id}/")
+
+        # Check that the task was deleted successfully
+        self.assertEqual(response.status_code, 204)
+
+        # Check that create_notifications was called for the assigned user
+        mock_create_notifications.assert_called_once_with(
+            recipient=self.regular_user,
+            title="Task Deleted",
+            message="The task 'Test task for deletion notification' has been deleted.",
+            link="/my-deadlines",
+        )
+
+    @patch("core.views.create_notifications")
+    def test_task_deletion_no_notification_when_deleter_is_assigned_user(
+        self, mock_create_notifications
+    ):
+        """Test that no notification is sent when assigned user deletes their own task"""
+        # Create API client and authenticate as regular user
+        regular_api_client = APIClient()
+        refresh = RefreshToken.for_user(self.regular_user)
+        regular_api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}"
+        )
+
+        # Create a task assigned to the regular user
+        task = Task.objects.create(
+            client=self.client_obj,
+            category="compliance",
+            description="Test task for self-deletion",
+            assigned_to=self.regular_user,
+            priority="medium",
+            deadline="2025-12-31",
+            status="not_yet_started",
+            period_covered="2025",
+            engagement_date="2025-01-01",
+        )
+
+        # Delete the task as the assigned user
+        response = regular_api_client.delete(f"/api/tasks/{task.id}/")
+
+        # Check that the task was deleted successfully
+        self.assertEqual(response.status_code, 204)
 
         # Check that create_notifications was not called
         mock_create_notifications.assert_not_called()

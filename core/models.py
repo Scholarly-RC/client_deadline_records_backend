@@ -519,8 +519,6 @@ class ClientDocument(models.Model):
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
-    is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.title} - {self.client.name}"
@@ -529,61 +527,6 @@ class ClientDocument(models.Model):
         ordering = ["-uploaded_at"]
         verbose_name = "Client Document"
         verbose_name_plural = "Client Documents"
-
-    def soft_delete(self):
-        """Soft delete the document by moving file to deleted directory"""
-        if not self.is_deleted:
-            from django.core.files.storage import default_storage
-            from django.utils import timezone
-
-            # Generate new path for deleted file
-            original_path = self.document_file.name or ""
-            filename = (
-                original_path.split("/")[-1]
-                if original_path and "/" in original_path
-                else (original_path or "unknown_file")
-            )
-            deleted_path = (
-                f"deleted/{timezone.now().strftime('%Y/%m/%d')}/{self.pk}_{filename}"
-            )
-
-            try:
-                # Check if file exists before attempting to move
-                if original_path and default_storage.exists(original_path):
-                    # Read the original file
-                    with default_storage.open(original_path, "rb") as old_file:
-                        file_content = old_file.read()
-
-                    # Save to new location
-                    default_storage.save(deleted_path, ContentFile(file_content))
-
-                    # Delete original file
-                    default_storage.delete(original_path)
-
-                    # Update model fields
-                    self.document_file.name = deleted_path
-                    self.is_deleted = True
-                    self.deleted_at = timezone.now()
-                    self.save(
-                        update_fields=["document_file", "is_deleted", "deleted_at"]
-                    )
-
-                    return True
-                else:
-                    # File doesn't exist, just mark as deleted
-                    self.is_deleted = True
-                    self.deleted_at = timezone.now()
-                    self.save(update_fields=["is_deleted", "deleted_at"])
-                    return True
-
-            except Exception as e:
-                # If moving fails, still mark as deleted but keep original path
-                self.is_deleted = True
-                self.deleted_at = timezone.now()
-                self.save(update_fields=["is_deleted", "deleted_at"])
-                return False
-
-        return True
 
     def file_exists(self):
         """Check if the file exists in storage"""
@@ -595,67 +538,6 @@ class ClientDocument(models.Model):
             )
         except Exception:
             return False
-
-    def restore(self):
-        """Restore a soft-deleted document"""
-        if self.is_deleted:
-            from django.core.files.storage import default_storage
-            from django.utils import timezone
-
-            # Generate original path
-            deleted_path = self.document_file.name or ""
-            if deleted_path and "/" in deleted_path:
-                filename_with_id = deleted_path.split("/")[-1]
-                if "_" in filename_with_id:
-                    original_filename = filename_with_id.split("_", 1)[
-                        -1
-                    ]  # Remove ID prefix
-                else:
-                    original_filename = filename_with_id
-            else:
-                original_filename = deleted_path or "unknown_file"
-            original_path = f"client_documents/{original_filename}"
-
-            try:
-                # Check if file exists in deleted location before attempting to move
-                if deleted_path and default_storage.exists(deleted_path):
-                    # Read the deleted file
-                    with default_storage.open(deleted_path, "rb") as deleted_file:
-                        file_content = deleted_file.read()
-
-                    # Save to original location
-                    default_storage.save(original_path, ContentFile(file_content))
-
-                    # Delete from deleted location
-                    default_storage.delete(deleted_path)
-
-                    # Update model fields
-                    self.document_file.name = original_path
-                    self.is_deleted = False
-                    self.deleted_at = None
-                    self.save(
-                        update_fields=["document_file", "is_deleted", "deleted_at"]
-                    )
-
-                    return True
-                else:
-                    # File doesn't exist in deleted location, just mark as restored
-                    self.document_file.name = original_path
-                    self.is_deleted = False
-                    self.deleted_at = None
-                    self.save(
-                        update_fields=["document_file", "is_deleted", "deleted_at"]
-                    )
-                    return True
-
-            except Exception as e:
-                # If restoring fails, still mark as restored
-                self.is_deleted = False
-                self.deleted_at = None
-                self.save(update_fields=["is_deleted", "deleted_at"])
-                return False
-
-        return True
 
     def hard_delete(self):
         """Permanently delete the document and its file"""

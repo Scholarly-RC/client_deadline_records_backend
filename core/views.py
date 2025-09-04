@@ -251,10 +251,30 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
     def update(self, request, *args, **kwargs):
-        """Override update to track assigned_to changes"""
+        """Override update to track assigned_to changes and general updates"""
         # Get the instance before update
         instance = self.get_object()
         original_assigned_to = instance.assigned_to
+        original_data = {
+            "description": instance.description,
+            "status": instance.status,
+            "priority": instance.priority,
+            "deadline": instance.deadline,
+            "remarks": instance.remarks,
+            "period_covered": instance.period_covered,
+            "engagement_date": instance.engagement_date,
+            "steps": instance.steps,
+            "requirements": instance.requirements,
+            "type": instance.type,
+            "needed_data": instance.needed_data,
+            "area": instance.area,
+            "tax_category": instance.tax_category,
+            "tax_type": instance.tax_type,
+            "form": instance.form,
+            "working_paper": instance.working_paper,
+            "tax_payable": instance.tax_payable,
+            "last_followup": instance.last_followup,
+        }
 
         # Perform the update
         response = super().update(request, *args, **kwargs)
@@ -262,20 +282,79 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Get the updated instance
         updated_instance = self.get_object()
 
-        # Check if assigned_to has changed and notify new assignee
+        # Check if assigned_to has changed and notify both new and previous assignees
         if (
             original_assigned_to != updated_instance.assigned_to
             and updated_instance.assigned_to
+        ):
+            # Notify new assignee
+            if updated_instance.assigned_to != self.request.user:
+                create_notifications(
+                    recipient=updated_instance.assigned_to,
+                    title=(
+                        "Task Reassigned"
+                        if original_assigned_to
+                        else "New Task Assigned"
+                    ),
+                    message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
+                    link="/my-deadlines",
+                )
+
+            # Notify previous assignee (only if there was one and it's not the same as the updater)
+            if (
+                original_assigned_to
+                and original_assigned_to != self.request.user
+                and original_assigned_to != updated_instance.assigned_to
+            ):
+                create_notifications(
+                    recipient=original_assigned_to,
+                    title="Task Reassigned",
+                    message=f"The task '{updated_instance.description}' has been reassigned to {updated_instance.assigned_to.fullname}.",
+                    link="/my-deadlines",
+                )
+
+        # Check if other fields have changed and notify the assigned user
+        # (only if assigned_to didn't change or if it changed to someone else)
+        current_data = {
+            "description": updated_instance.description,
+            "status": updated_instance.status,
+            "priority": updated_instance.priority,
+            "deadline": updated_instance.deadline,
+            "remarks": updated_instance.remarks,
+            "period_covered": updated_instance.period_covered,
+            "engagement_date": updated_instance.engagement_date,
+            "steps": updated_instance.steps,
+            "requirements": updated_instance.requirements,
+            "type": updated_instance.type,
+            "needed_data": updated_instance.needed_data,
+            "area": updated_instance.area,
+            "tax_category": updated_instance.tax_category,
+            "tax_type": updated_instance.tax_type,
+            "form": updated_instance.form,
+            "working_paper": updated_instance.working_paper,
+            "tax_payable": updated_instance.tax_payable,
+            "last_followup": updated_instance.last_followup,
+        }
+
+        # Check if any field has changed
+        fields_changed = any(
+            original_data[key] != current_data[key] for key in original_data
+        )
+
+        # Send notification to assigned user if fields changed and user is not the one making the update
+        if (
+            fields_changed
+            and updated_instance.assigned_to
             and updated_instance.assigned_to != self.request.user
         ):
-            create_notifications(
-                recipient=updated_instance.assigned_to,
-                title=(
-                    "Task Reassigned" if original_assigned_to else "New Task Assigned"
-                ),
-                message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
-                link="/my-deadlines",
-            )
+            # Don't send if this was just a reassignment (already handled above)
+            if original_assigned_to == updated_instance.assigned_to:
+                create_notifications(
+                    recipient=updated_instance.assigned_to,
+                    title="Task Updated",
+                    message=f"The task '{updated_instance.description}' has been updated.",
+                    link="/my-deadlines",
+                )
 
         return response
 
@@ -1507,6 +1586,25 @@ class TaskViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to send notification before deleting task"""
+        instance = self.get_object()
+
+        # Send notification to assigned user before deletion
+        if instance.assigned_to and instance.assigned_to != request.user:
+            create_notifications(
+                recipient=instance.assigned_to,
+                title="Task Deleted",
+                message=f"The task '{instance.description}' has been deleted.",
+                link="/my-deadlines",
+            )
+
+        # Log the deletion
+        create_log(request.user, f"Deleted task: {instance}")
+
+        # Perform the deletion
+        return super().destroy(request, *args, **kwargs)
+
 
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.select_related("created_by")
@@ -1707,15 +1805,11 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
         """
         Filter queryset based on user permissions.
         Admin users see all documents, non-admin users only see documents for clients they created.
-        By default, excludes soft-deleted documents.
         """
         queryset = ClientDocument.objects.select_related("client", "uploaded_by")
 
         if not self.request.user.is_authenticated:
             return queryset.none()
-
-        # Filter out soft-deleted documents by default
-        queryset = queryset.filter(is_deleted=False)
 
         if self.request.user.is_admin:
             return queryset
@@ -1740,23 +1834,17 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
-        """Soft delete document and log the action"""
+        """Hard delete document and log the action"""
         client_name = instance.client.name
         document_title = instance.title
 
-        # Perform soft delete
-        success = instance.soft_delete()
+        # Perform hard delete
+        instance.hard_delete()
 
-        if success:
-            create_log(
-                self.request.user,
-                f"Soft deleted document '{document_title}' for client {client_name}.",
-            )
-        else:
-            create_log(
-                self.request.user,
-                f"Soft deleted document '{document_title}' for client {client_name} (file move failed).",
-            )
+        create_log(
+            self.request.user,
+            f"Permanently deleted document '{document_title}' for client {client_name}.",
+        )
 
     @action(detail=False, methods=["get"], url_path="by-client")
     def get_documents_by_client(self, request):
@@ -1837,84 +1925,3 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
                 {"error": f"Error downloading file: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    @action(detail=False, methods=["get"], url_path="deleted")
-    def get_deleted_documents(self, request):
-        """Get all soft-deleted documents (admin only)"""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin users can view deleted documents"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        deleted_docs = ClientDocument.objects.filter(is_deleted=True).select_related(
-            "client", "uploaded_by"
-        )
-
-        serializer = self.get_serializer(deleted_docs, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=["post"], url_path="restore")
-    def restore_document(self, request, pk=None):
-        """Restore a soft-deleted document"""
-        document = self.get_object()
-
-        # Check if document is actually deleted
-        if not document.is_deleted:
-            return Response(
-                {"error": "Document is not deleted"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Check permissions
-        if not request.user.is_admin and document.client.created_by != request.user:
-            return Response(
-                {"error": "You don't have permission to restore this document"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        success = document.restore()
-
-        if success:
-            create_log(
-                request.user,
-                f"Restored document '{document.title}' for client {document.client.name}.",
-            )
-            serializer = self.get_serializer(document)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {"error": "Failed to restore document"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    @action(detail=True, methods=["delete"], url_path="hard-delete")
-    def hard_delete_document(self, request, pk=None):
-        """Permanently delete a document and its file (admin only)"""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin users can permanently delete documents"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        document = self.get_object()
-
-        # Check permissions
-        if not request.user.is_admin and document.client.created_by != request.user:
-            return Response(
-                {"error": "You don't have permission to delete this document"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        client_name = document.client.name
-        document_title = document.title
-
-        # Perform hard delete
-        document.hard_delete()
-
-        create_log(
-            request.user,
-            f"Permanently deleted document '{document_title}' for client {client_name}.",
-        )
-
-        return Response(status=status.HTTP_204_NO_CONTENT)

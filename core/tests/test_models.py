@@ -416,22 +416,6 @@ class ClientDocumentModelTests(TestCase):
         )
         self.assertEqual(doc_no_ext.file_extension, "Unknown")
 
-    def test_soft_delete(self):
-        """Test soft_delete method"""
-        # This test would require proper file storage setup
-        # For now, just test that the method exists and can be called
-        result = self.document.soft_delete()
-        self.assertIsInstance(result, bool)
-
-    def test_restore(self):
-        """Test restore method"""
-        # Mark as deleted first
-        self.document.is_deleted = True
-        self.document.save()
-
-        result = self.document.restore()
-        self.assertIsInstance(result, bool)
-
     def test_file_exists(self):
         """Test file_exists method"""
         exists = self.document.file_exists()
