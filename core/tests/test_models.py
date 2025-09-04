@@ -5,10 +5,25 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.test import TestCase
 
-from core.choices import (ClientStatus, TaskCategory, TaskPriority, TaskStatus,
-                          TaxCaseCategory, TypeOfTaxCase, UserRoles)
-from core.models import (AppLog, Client, ClientDocument, Notification, Task,
-                         TaskApproval, TaskStatusHistory, User)
+from core.choices import (
+    ClientStatus,
+    TaskCategory,
+    TaskPriority,
+    TaskStatus,
+    TaxCaseCategory,
+    TypeOfTaxCase,
+    UserRoles,
+)
+from core.models import (
+    AppLog,
+    Client,
+    ClientDocument,
+    Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
+    User,
+)
 from core.utils import get_today_local
 
 User = get_user_model()

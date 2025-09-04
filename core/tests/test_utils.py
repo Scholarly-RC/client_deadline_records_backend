@@ -6,8 +6,12 @@ from django.test import TestCase
 
 from core.choices import TaskCategory, UserRoles
 from core.models import Client, Task
-from core.utils import (get_admin_users, get_notification_recipients,
-                        get_now_local, get_today_local)
+from core.utils import (
+    get_admin_users,
+    get_notification_recipients,
+    get_now_local,
+    get_today_local,
+)
 
 User = get_user_model()
 

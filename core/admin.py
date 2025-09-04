@@ -2,8 +2,16 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from core.models import (AppLog, Client, ClientDocument, Notification, Task,
-                         TaskApproval, TaskStatusHistory, User)
+from core.models import (
+    AppLog,
+    Client,
+    ClientDocument,
+    Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
+    User,
+)
 
 
 class CustomUserAdmin(UserAdmin):

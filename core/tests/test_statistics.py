@@ -7,8 +7,14 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from core.choices import (ClientStatus, TaskCategory, TaskStatus,
-                          TaxCaseCategory, TypeOfTaxCase, UserRoles)
+from core.choices import (
+    ClientStatus,
+    TaskCategory,
+    TaskStatus,
+    TaxCaseCategory,
+    TypeOfTaxCase,
+    UserRoles,
+)
 from core.models import Client, Task, TaskApproval
 from core.utils import get_now_local, get_today_local
 

@@ -8,8 +8,10 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from core.actions import (send_notification_for_due_tasks,
-                          send_notification_on_reminder_date)
+from core.actions import (
+    send_notification_for_due_tasks,
+    send_notification_on_reminder_date,
+)
 from core.models import Client, Task, User
 from core.utils import get_today_local
 

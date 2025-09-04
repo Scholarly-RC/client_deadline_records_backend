@@ -7,9 +7,16 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 from django.utils.translation import gettext_lazy as _
 
-from core.choices import (BirForms, ClientStatus, TaskCategory, TaskPriority,
-                          TaskStatus, TaxCaseCategory, TypeOfTaxCase,
-                          UserRoles)
+from core.choices import (
+    BirForms,
+    ClientStatus,
+    TaskCategory,
+    TaskPriority,
+    TaskStatus,
+    TaxCaseCategory,
+    TypeOfTaxCase,
+    UserRoles,
+)
 from core.utils import get_now_local, get_today_local
 
 

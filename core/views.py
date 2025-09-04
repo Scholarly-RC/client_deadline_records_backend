@@ -13,22 +13,45 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.actions import (create_log, create_notifications,
-                          initiate_task_approval, process_task_approval)
+from core.actions import (
+    create_log,
+    create_notifications,
+    initiate_task_approval,
+    process_task_approval,
+)
 from core.choices import TaskStatus
-from core.models import (AppLog, Client, ClientDocument, Notification, Task,
-                         TaskApproval, TaskStatusHistory, User)
+from core.models import (
+    AppLog,
+    Client,
+    ClientDocument,
+    Notification,
+    Task,
+    TaskApproval,
+    TaskStatusHistory,
+    User,
+)
 from core.pagination import CustomPageNumberPagination
-from core.serializers import (AppLogSerializer, ClientBirthdaySerializer,
-                              ClientDocumentSerializer, ClientSerializer,
-                              InitiateApprovalSerializer,
-                              NotificationSerializer,
-                              ProcessApprovalSerializer,
-                              TaskApprovalSerializer, TaskListSerializer,
-                              TaskSerializer, TaskStatusHistorySerializer,
-                              UserMiniSerializer, UserSerializer)
-from core.utils import (get_admin_users, get_notification_recipients,
-                        get_now_local, get_today_local)
+from core.serializers import (
+    AppLogSerializer,
+    ClientBirthdaySerializer,
+    ClientDocumentSerializer,
+    ClientSerializer,
+    InitiateApprovalSerializer,
+    NotificationSerializer,
+    ProcessApprovalSerializer,
+    TaskApprovalSerializer,
+    TaskListSerializer,
+    TaskSerializer,
+    TaskStatusHistorySerializer,
+    UserMiniSerializer,
+    UserSerializer,
+)
+from core.utils import (
+    get_admin_users,
+    get_notification_recipients,
+    get_now_local,
+    get_today_local,
+)
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -425,12 +448,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Get comprehensive task statistics optimized for dashboard visualization"""
         from datetime import datetime, timedelta
 
-        from django.db.models import (Avg, Case, Count, F, IntegerField, Q,
-                                      Sum, When)
+        from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, When
         from django.db.models.functions import Extract, TruncMonth
 
-        from core.choices import (TaskCategory, TaskPriority, TaskStatus,
-                                  TaxCaseCategory, TypeOfTaxCase)
+        from core.choices import (
+            TaskCategory,
+            TaskPriority,
+            TaskStatus,
+            TaxCaseCategory,
+            TypeOfTaxCase,
+        )
 
         queryset = self.get_queryset()
 
@@ -994,14 +1021,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         from datetime import datetime, timedelta
         from io import BytesIO
 
-        from django.db.models import (Avg, Case, Count, F, IntegerField, Q,
-                                      Sum, When)
+        from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, When
         from django.db.models.functions import Extract, TruncMonth
         from django.http import HttpResponse
         from openpyxl import Workbook
 
-        from core.choices import (TaskCategory, TaskPriority, TaskStatus,
-                                  TaxCaseCategory, TypeOfTaxCase)
+        from core.choices import (
+            TaskCategory,
+            TaskPriority,
+            TaskStatus,
+            TaxCaseCategory,
+            TypeOfTaxCase,
+        )
 
         # Get format parameter from request data (default to csv)
         export_format = request.data.get("format", "csv")
