@@ -1805,15 +1805,11 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
         """
         Filter queryset based on user permissions.
         Admin users see all documents, non-admin users only see documents for clients they created.
-        By default, excludes soft-deleted documents.
         """
         queryset = ClientDocument.objects.select_related("client", "uploaded_by")
 
         if not self.request.user.is_authenticated:
             return queryset.none()
-
-        # Filter out soft-deleted documents by default
-        queryset = queryset.filter(is_deleted=False)
 
         if self.request.user.is_admin:
             return queryset
@@ -1838,23 +1834,17 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
-        """Soft delete document and log the action"""
+        """Hard delete document and log the action"""
         client_name = instance.client.name
         document_title = instance.title
 
-        # Perform soft delete
-        success = instance.soft_delete()
+        # Perform hard delete
+        instance.hard_delete()
 
-        if success:
-            create_log(
-                self.request.user,
-                f"Soft deleted document '{document_title}' for client {client_name}.",
-            )
-        else:
-            create_log(
-                self.request.user,
-                f"Soft deleted document '{document_title}' for client {client_name} (file move failed).",
-            )
+        create_log(
+            self.request.user,
+            f"Permanently deleted document '{document_title}' for client {client_name}.",
+        )
 
     @action(detail=False, methods=["get"], url_path="by-client")
     def get_documents_by_client(self, request):
@@ -1935,84 +1925,3 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
                 {"error": f"Error downloading file: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    @action(detail=False, methods=["get"], url_path="deleted")
-    def get_deleted_documents(self, request):
-        """Get all soft-deleted documents (admin only)"""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin users can view deleted documents"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        deleted_docs = ClientDocument.objects.filter(is_deleted=True).select_related(
-            "client", "uploaded_by"
-        )
-
-        serializer = self.get_serializer(deleted_docs, many=True)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=["post"], url_path="restore")
-    def restore_document(self, request, pk=None):
-        """Restore a soft-deleted document"""
-        document = self.get_object()
-
-        # Check if document is actually deleted
-        if not document.is_deleted:
-            return Response(
-                {"error": "Document is not deleted"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Check permissions
-        if not request.user.is_admin and document.client.created_by != request.user:
-            return Response(
-                {"error": "You don't have permission to restore this document"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        success = document.restore()
-
-        if success:
-            create_log(
-                request.user,
-                f"Restored document '{document.title}' for client {document.client.name}.",
-            )
-            serializer = self.get_serializer(document)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {"error": "Failed to restore document"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    @action(detail=True, methods=["delete"], url_path="hard-delete")
-    def hard_delete_document(self, request, pk=None):
-        """Permanently delete a document and its file (admin only)"""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin users can permanently delete documents"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        document = self.get_object()
-
-        # Check permissions
-        if not request.user.is_admin and document.client.created_by != request.user:
-            return Response(
-                {"error": "You don't have permission to delete this document"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        client_name = document.client.name
-        document_title = document.title
-
-        # Perform hard delete
-        document.hard_delete()
-
-        create_log(
-            request.user,
-            f"Permanently deleted document '{document_title}' for client {client_name}.",
-        )
-
-        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -525,7 +525,6 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
     file_extension = serializers.SerializerMethodField()
     uploaded_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
     updated_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
-    deleted_at = serializers.DateTimeField(format="%Y-%m-%d %I:%M %p", read_only=True)
 
     class Meta:
         model = ClientDocument
@@ -542,16 +541,12 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
             "file_extension",
             "uploaded_at",
             "updated_at",
-            "is_deleted",
-            "deleted_at",
         ]
         read_only_fields = [
             "id",
             "uploaded_at",
             "updated_at",
             "uploaded_by",
-            "is_deleted",
-            "deleted_at",
         ]
 
     @extend_schema_field(serializers.CharField)
