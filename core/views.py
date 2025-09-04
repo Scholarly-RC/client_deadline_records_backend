@@ -251,10 +251,30 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
     def update(self, request, *args, **kwargs):
-        """Override update to track assigned_to changes"""
+        """Override update to track assigned_to changes and general updates"""
         # Get the instance before update
         instance = self.get_object()
         original_assigned_to = instance.assigned_to
+        original_data = {
+            'description': instance.description,
+            'status': instance.status,
+            'priority': instance.priority,
+            'deadline': instance.deadline,
+            'remarks': instance.remarks,
+            'period_covered': instance.period_covered,
+            'engagement_date': instance.engagement_date,
+            'steps': instance.steps,
+            'requirements': instance.requirements,
+            'type': instance.type,
+            'needed_data': instance.needed_data,
+            'area': instance.area,
+            'tax_category': instance.tax_category,
+            'tax_type': instance.tax_type,
+            'form': instance.form,
+            'working_paper': instance.working_paper,
+            'tax_payable': instance.tax_payable,
+            'last_followup': instance.last_followup,
+        }
 
         # Perform the update
         response = super().update(request, *args, **kwargs)
@@ -262,20 +282,75 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Get the updated instance
         updated_instance = self.get_object()
 
-        # Check if assigned_to has changed and notify new assignee
+        # Check if assigned_to has changed and notify both new and previous assignees
         if (
             original_assigned_to != updated_instance.assigned_to
             and updated_instance.assigned_to
+        ):
+            # Notify new assignee
+            if updated_instance.assigned_to != self.request.user:
+                create_notifications(
+                    recipient=updated_instance.assigned_to,
+                    title=(
+                        "Task Reassigned" if original_assigned_to else "New Task Assigned"
+                    ),
+                    message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
+                    link="/my-deadlines",
+                )
+
+            # Notify previous assignee (only if there was one and it's not the same as the updater)
+            if (
+                original_assigned_to
+                and original_assigned_to != self.request.user
+                and original_assigned_to != updated_instance.assigned_to
+            ):
+                create_notifications(
+                    recipient=original_assigned_to,
+                    title="Task Reassigned",
+                    message=f"The task '{updated_instance.description}' has been reassigned to {updated_instance.assigned_to.fullname}.",
+                    link="/my-deadlines",
+                )
+
+        # Check if other fields have changed and notify the assigned user
+        # (only if assigned_to didn't change or if it changed to someone else)
+        current_data = {
+            'description': updated_instance.description,
+            'status': updated_instance.status,
+            'priority': updated_instance.priority,
+            'deadline': updated_instance.deadline,
+            'remarks': updated_instance.remarks,
+            'period_covered': updated_instance.period_covered,
+            'engagement_date': updated_instance.engagement_date,
+            'steps': updated_instance.steps,
+            'requirements': updated_instance.requirements,
+            'type': updated_instance.type,
+            'needed_data': updated_instance.needed_data,
+            'area': updated_instance.area,
+            'tax_category': updated_instance.tax_category,
+            'tax_type': updated_instance.tax_type,
+            'form': updated_instance.form,
+            'working_paper': updated_instance.working_paper,
+            'tax_payable': updated_instance.tax_payable,
+            'last_followup': updated_instance.last_followup,
+        }
+
+        # Check if any field has changed
+        fields_changed = any(original_data[key] != current_data[key] for key in original_data)
+
+        # Send notification to assigned user if fields changed and user is not the one making the update
+        if (
+            fields_changed
+            and updated_instance.assigned_to
             and updated_instance.assigned_to != self.request.user
         ):
-            create_notifications(
-                recipient=updated_instance.assigned_to,
-                title=(
-                    "Task Reassigned" if original_assigned_to else "New Task Assigned"
-                ),
-                message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
-                link="/my-deadlines",
-            )
+            # Don't send if this was just a reassignment (already handled above)
+            if original_assigned_to == updated_instance.assigned_to:
+                create_notifications(
+                    recipient=updated_instance.assigned_to,
+                    title="Task Updated",
+                    message=f"The task '{updated_instance.description}' has been updated.",
+                    link="/my-deadlines",
+                )
 
         return response
 
@@ -1506,6 +1581,25 @@ class TaskViewSet(viewsets.ModelViewSet):
             TaskListSerializer(optimized_tasks, many=True).data,
             status=status.HTTP_200_OK,
         )
+
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to send notification before deleting task"""
+        instance = self.get_object()
+
+        # Send notification to assigned user before deletion
+        if instance.assigned_to and instance.assigned_to != request.user:
+            create_notifications(
+                recipient=instance.assigned_to,
+                title="Task Deleted",
+                message=f"The task '{instance.description}' has been deleted.",
+                link="/my-deadlines",
+            )
+
+        # Log the deletion
+        create_log(request.user, f"Deleted task: {instance}")
+
+        # Perform the deletion
+        return super().destroy(request, *args, **kwargs)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
