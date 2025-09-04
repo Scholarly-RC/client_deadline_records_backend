@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
-from drf_spectacular.management.commands.spectacular import (
-    Command as SpectacularCommand,
-)
+from drf_spectacular.management.commands.spectacular import \
+    Command as SpectacularCommand
 
 
 class Command(BaseCommand):

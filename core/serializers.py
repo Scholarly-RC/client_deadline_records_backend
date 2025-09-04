@@ -6,16 +6,8 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from core.choices import TaskStatus
-from core.models import (
-    AppLog,
-    Client,
-    ClientDocument,
-    Notification,
-    Task,
-    TaskApproval,
-    TaskStatusHistory,
-    User,
-)
+from core.models import (AppLog, Client, ClientDocument, Notification, Task,
+                         TaskApproval, TaskStatusHistory, User)
 from core.utils import get_today_local
 
 # =======================

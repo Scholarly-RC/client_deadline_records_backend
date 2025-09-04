@@ -1,4 +1,5 @@
-from core.models import AppLog, Client, Notification, TaskApproval, TaskStatusHistory
+from core.models import (AppLog, Client, Notification, TaskApproval,
+                         TaskStatusHistory)
 from core.utils import get_admin_users, get_today_local
 
 

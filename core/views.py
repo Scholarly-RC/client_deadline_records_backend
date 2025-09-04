@@ -13,45 +13,22 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.actions import (
-    create_log,
-    create_notifications,
-    initiate_task_approval,
-    process_task_approval,
-)
+from core.actions import (create_log, create_notifications,
+                          initiate_task_approval, process_task_approval)
 from core.choices import TaskStatus
-from core.models import (
-    AppLog,
-    Client,
-    ClientDocument,
-    Notification,
-    Task,
-    TaskApproval,
-    TaskStatusHistory,
-    User,
-)
+from core.models import (AppLog, Client, ClientDocument, Notification, Task,
+                         TaskApproval, TaskStatusHistory, User)
 from core.pagination import CustomPageNumberPagination
-from core.serializers import (
-    AppLogSerializer,
-    ClientBirthdaySerializer,
-    ClientDocumentSerializer,
-    ClientSerializer,
-    InitiateApprovalSerializer,
-    NotificationSerializer,
-    ProcessApprovalSerializer,
-    TaskApprovalSerializer,
-    TaskListSerializer,
-    TaskSerializer,
-    TaskStatusHistorySerializer,
-    UserMiniSerializer,
-    UserSerializer,
-)
-from core.utils import (
-    get_admin_users,
-    get_notification_recipients,
-    get_now_local,
-    get_today_local,
-)
+from core.serializers import (AppLogSerializer, ClientBirthdaySerializer,
+                              ClientDocumentSerializer, ClientSerializer,
+                              InitiateApprovalSerializer,
+                              NotificationSerializer,
+                              ProcessApprovalSerializer,
+                              TaskApprovalSerializer, TaskListSerializer,
+                              TaskSerializer, TaskStatusHistorySerializer,
+                              UserMiniSerializer, UserSerializer)
+from core.utils import (get_admin_users, get_notification_recipients,
+                        get_now_local, get_today_local)
 
 
 class IsOwnerOrStaff(permissions.BasePermission):
@@ -256,24 +233,24 @@ class TaskViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         original_assigned_to = instance.assigned_to
         original_data = {
-            'description': instance.description,
-            'status': instance.status,
-            'priority': instance.priority,
-            'deadline': instance.deadline,
-            'remarks': instance.remarks,
-            'period_covered': instance.period_covered,
-            'engagement_date': instance.engagement_date,
-            'steps': instance.steps,
-            'requirements': instance.requirements,
-            'type': instance.type,
-            'needed_data': instance.needed_data,
-            'area': instance.area,
-            'tax_category': instance.tax_category,
-            'tax_type': instance.tax_type,
-            'form': instance.form,
-            'working_paper': instance.working_paper,
-            'tax_payable': instance.tax_payable,
-            'last_followup': instance.last_followup,
+            "description": instance.description,
+            "status": instance.status,
+            "priority": instance.priority,
+            "deadline": instance.deadline,
+            "remarks": instance.remarks,
+            "period_covered": instance.period_covered,
+            "engagement_date": instance.engagement_date,
+            "steps": instance.steps,
+            "requirements": instance.requirements,
+            "type": instance.type,
+            "needed_data": instance.needed_data,
+            "area": instance.area,
+            "tax_category": instance.tax_category,
+            "tax_type": instance.tax_type,
+            "form": instance.form,
+            "working_paper": instance.working_paper,
+            "tax_payable": instance.tax_payable,
+            "last_followup": instance.last_followup,
         }
 
         # Perform the update
@@ -292,7 +269,9 @@ class TaskViewSet(viewsets.ModelViewSet):
                 create_notifications(
                     recipient=updated_instance.assigned_to,
                     title=(
-                        "Task Reassigned" if original_assigned_to else "New Task Assigned"
+                        "Task Reassigned"
+                        if original_assigned_to
+                        else "New Task Assigned"
                     ),
                     message=f"The task '{updated_instance.description}' has been {'reassigned' if original_assigned_to else 'assigned'} to you.",
                     link="/my-deadlines",
@@ -314,28 +293,30 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Check if other fields have changed and notify the assigned user
         # (only if assigned_to didn't change or if it changed to someone else)
         current_data = {
-            'description': updated_instance.description,
-            'status': updated_instance.status,
-            'priority': updated_instance.priority,
-            'deadline': updated_instance.deadline,
-            'remarks': updated_instance.remarks,
-            'period_covered': updated_instance.period_covered,
-            'engagement_date': updated_instance.engagement_date,
-            'steps': updated_instance.steps,
-            'requirements': updated_instance.requirements,
-            'type': updated_instance.type,
-            'needed_data': updated_instance.needed_data,
-            'area': updated_instance.area,
-            'tax_category': updated_instance.tax_category,
-            'tax_type': updated_instance.tax_type,
-            'form': updated_instance.form,
-            'working_paper': updated_instance.working_paper,
-            'tax_payable': updated_instance.tax_payable,
-            'last_followup': updated_instance.last_followup,
+            "description": updated_instance.description,
+            "status": updated_instance.status,
+            "priority": updated_instance.priority,
+            "deadline": updated_instance.deadline,
+            "remarks": updated_instance.remarks,
+            "period_covered": updated_instance.period_covered,
+            "engagement_date": updated_instance.engagement_date,
+            "steps": updated_instance.steps,
+            "requirements": updated_instance.requirements,
+            "type": updated_instance.type,
+            "needed_data": updated_instance.needed_data,
+            "area": updated_instance.area,
+            "tax_category": updated_instance.tax_category,
+            "tax_type": updated_instance.tax_type,
+            "form": updated_instance.form,
+            "working_paper": updated_instance.working_paper,
+            "tax_payable": updated_instance.tax_payable,
+            "last_followup": updated_instance.last_followup,
         }
 
         # Check if any field has changed
-        fields_changed = any(original_data[key] != current_data[key] for key in original_data)
+        fields_changed = any(
+            original_data[key] != current_data[key] for key in original_data
+        )
 
         # Send notification to assigned user if fields changed and user is not the one making the update
         if (
@@ -444,16 +425,12 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Get comprehensive task statistics optimized for dashboard visualization"""
         from datetime import datetime, timedelta
 
-        from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, When
+        from django.db.models import (Avg, Case, Count, F, IntegerField, Q,
+                                      Sum, When)
         from django.db.models.functions import Extract, TruncMonth
 
-        from core.choices import (
-            TaskCategory,
-            TaskPriority,
-            TaskStatus,
-            TaxCaseCategory,
-            TypeOfTaxCase,
-        )
+        from core.choices import (TaskCategory, TaskPriority, TaskStatus,
+                                  TaxCaseCategory, TypeOfTaxCase)
 
         queryset = self.get_queryset()
 
@@ -1017,18 +994,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         from datetime import datetime, timedelta
         from io import BytesIO
 
-        from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, When
+        from django.db.models import (Avg, Case, Count, F, IntegerField, Q,
+                                      Sum, When)
         from django.db.models.functions import Extract, TruncMonth
         from django.http import HttpResponse
         from openpyxl import Workbook
 
-        from core.choices import (
-            TaskCategory,
-            TaskPriority,
-            TaskStatus,
-            TaxCaseCategory,
-            TypeOfTaxCase,
-        )
+        from core.choices import (TaskCategory, TaskPriority, TaskStatus,
+                                  TaxCaseCategory, TypeOfTaxCase)
 
         # Get format parameter from request data (default to csv)
         export_format = request.data.get("format", "csv")
