@@ -36,4 +36,7 @@ uploads/
 # Dump
 dump.rdb
 
+# Database backups
+backups/
+
 opencode.json
