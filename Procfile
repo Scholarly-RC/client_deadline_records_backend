@@ -1,1 +1,1 @@
-web: celery -A client_deadline_records_backend worker --loglevel=info --uid=1000 --gid=1000 & celery -A client_deadline_records_backend beat --loglevel=info --uid=1000 --gid=1000 & sleep 2 && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn client_deadline_records_backend.wsgi
+web: bash start.sh
